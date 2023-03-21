@@ -1,0 +1,38 @@
+n_epochs: 101
+device: cuda:0
+model_path: /home/alex/a.nevarko/models/vit_small_initial
+exp_name: vit_small_initial
+
+experiment:
+    api_key: CfFmqDpTCtsdDkLooedZh7bs2
+    project_name: Aurorai-balki-digits
+    workspace: alexandernevarko
+    auto_metric_logging: False
+
+train_data:
+    root: /home/alex/a.nevarko/data/balki/digits/train
+    shuffle: True
+    batch_size: 64
+    num_workers: 1
+
+val_data:
+    root: /home/alex/a.nevarko/data/balki/digits/val
+    shuffle: True
+    batch_size: 64
+    num_workers: 1
+
+model:
+    model: vit_small_patch16_224_in21k
+    pretrained: True
+
+optimizer:
+    type: adam
+    lr: 0.001
+    # lr_policy:
+    #     type: multistep
+    #     steps: [300, 400]
+    #     gamma: 0.2
+
+criterion:
+    type: CrossEntropyLoss
+    

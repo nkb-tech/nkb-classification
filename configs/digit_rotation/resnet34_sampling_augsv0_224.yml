@@ -1,0 +1,43 @@
+n_epochs: 101
+device: cuda:1
+model_path: /home/alex/a.nevarko/models/rotator/resnet34_ud_full224_ds_v3
+exp_name: resnet34_ud_full224_ds_v3
+
+experiment:
+    api_key: CfFmqDpTCtsdDkLooedZh7bs2
+    project_name: Aurorai-balki-groups-rotate
+    workspace: alexandernevarko
+    auto_metric_logging: False
+
+train_data:
+    root: /home/alex/a.nevarko/data/balki/groups/upside_down_v3/train
+    weighted_sampling: False
+    shuffle: True
+    batch_size: 64
+    num_workers: 0
+    size: 224
+
+val_data:
+    root: /home/alex/a.nevarko/data/balki/groups/upside_down_v3/val
+    weighted_sampling: False
+    shuffle: True
+    batch_size: 32
+    num_workers: 0
+    size: 224
+
+model:
+    model: resnet34
+    pretrained: True
+
+optimizer:
+    type: adam
+    lr: 0.0003
+    weight_decay: 0.001
+    lr_policy:
+        type: multistep
+        steps: [50, 80]
+        gamma: 0.2
+
+criterion:
+    type: CrossEntropyLoss
+    

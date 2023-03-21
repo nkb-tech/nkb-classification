@@ -1,0 +1,43 @@
+n_epochs: 101
+device: cuda:0
+model_path: /home/alex/a.nevarko/models/vagon_cls/mobilenetv3_large_100_v2_balanced
+exp_name: mobilenetv3_large_100_v2_balanced
+
+experiment:
+    api_key: CfFmqDpTCtsdDkLooedZh7bs2
+    project_name: Aurorai-gpt-vagons-cls
+    workspace: alexandernevarko
+    auto_metric_logging: False
+
+train_data:
+    root: /home/alex/a.nevarko/data/gpt/vagons_cls/data_v2/train
+    weighted_sampling: True
+    shuffle: True
+    batch_size: 32
+    num_workers: 2
+    size: 512
+
+val_data:
+    root: /home/alex/a.nevarko/data/gpt/vagons_cls/data_v2/test
+    weighted_sampling: True
+    shuffle: True
+    batch_size: 4
+    num_workers: 0
+    size: 512
+
+model:
+    model: mobilenetv3_large_100
+    pretrained: True
+
+optimizer:
+    type: adam
+    lr: 0.0001
+    weight_decay: 0.005
+    lr_policy:
+        type: multistep
+        steps: [40, 90]
+        gamma: 0.2
+
+criterion:
+    type: CrossEntropyLoss
+    
