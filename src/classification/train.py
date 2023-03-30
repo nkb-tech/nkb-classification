@@ -1,6 +1,7 @@
 from pathlib import Path
 import numpy as np
 import yaml
+import sys
 from sklearn.metrics import balanced_accuracy_score
 
 import torch
@@ -10,7 +11,7 @@ from torchvision.utils import make_grid
 import argparse
 from tqdm import tqdm
 
-from src.classification.utils import get_experiment, get_loss, get_model, get_optimizer, get_scheduler
+from src.classification.utils import get_experiment, get_model, get_optimizer, get_scheduler
 from src.classification.dataset import get_dataset
 
 import warnings
@@ -24,14 +25,11 @@ def train(model,
           scheduler, 
           criterion, 
           experiment,
+          device,
           cfg):
-    device = torch.device(cfg['device'])
-    model_path = Path(cfg['model_path'])
+    model_path = Path(cfg.model_path)
     model_path.mkdir(exist_ok=True, parents=True)
-    n_epochs = cfg['n_epochs']
-    exp_name = cfg.get('exp_name', 'default')
-    if experiment is not None:
-        experiment.set_name(exp_name)
+    n_epochs = cfg.n_epochs
     epoch_train_loss, epoch_val_loss = [], []
     best_val_acc = 0
     inv_transform = transforms.Compose([
@@ -99,6 +97,12 @@ def train(model,
             best_val_acc = val_acc
             torch.jit.save(m, Path(model_path, 'best.pth'))
         torch.jit.save(m, Path(model_path, 'last.pth'))
+        
+def read_py_config(path):
+    path = Path(path)
+    sys.path.append(str(path.parent))
+    line = f'import {path.stem} as cfg'
+    return line
 
 def main():
     # import ipdb; ipdb.set_trace()
@@ -106,19 +110,19 @@ def main():
     parser.add_argument('-cfg', '--config', help='Config file path', type=str, default='', required=True)
     args = parser.parse_args()
     cfg_file = args.config
-    with open(cfg_file, 'r') as file:
-        cfg = yaml.safe_load(file)
-    train_loader = get_dataset(cfg['train_data'])
-    val_loader = get_dataset(cfg['val_data'])
+    line = read_py_config(cfg_file)
+    exec(line, globals(), globals())
+    train_loader = get_dataset(cfg.train_data, cfg.train_pipeline)
+    val_loader = get_dataset(cfg.val_data, cfg.val_pipeline)
     n_classes = len(train_loader.dataset.classes)
-    device = torch.device(cfg['device'])
-    model = get_model(cfg['model'], n_classes, device)
-    optimizer = get_optimizer(model, cfg['optimizer'])
-    scheduler = get_scheduler(optimizer, cfg['optimizer'])
-    criterion = get_loss(cfg['criterion'], device)
-    experiment = get_experiment(cfg.get('experiment', None))
+    device = torch.device(cfg.device)
+    model = get_model(cfg.model, n_classes, device)
+    optimizer = get_optimizer(model, cfg.optimizer)
+    scheduler = get_scheduler(optimizer, cfg.lr_policy)
+    experiment = get_experiment(cfg.experiment)
     train(model, train_loader, val_loader,
-          optimizer, scheduler, criterion, experiment, cfg)
+          optimizer, scheduler, cfg.criterion, experiment, 
+          device, cfg)
 
 if __name__ == '__main__':
     main()

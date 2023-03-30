@@ -8,7 +8,10 @@ import timm
 def get_experiment(cfg_exp):
     if cfg_exp is None:
         return None
-    return Experiment(**cfg_exp)
+    name = cfg_exp.pop('name')
+    exp = Experiment(**cfg_exp)
+    exp.set_name(name)
+    return exp
 
 def get_optimizer(model, cfg_opt):
     if cfg_opt['type'] == 'adam':
@@ -20,22 +23,22 @@ def get_optimizer(model, cfg_opt):
     else:
         raise NotImplementedError(f'Unknown optimizer in config: {cfg_opt["type"]}')
 
-def get_scheduler(opt, cfg_opt):
-    if 'lr_policy' not in cfg_opt:
+def get_scheduler(opt, lr_policy):
+    if len(lr_policy) == 0:
         return None
-    if cfg_opt['lr_policy']['type'] == 'step':
+    if lr_policy['type'] == 'step':
         scheduler = lr_scheduler.StepLR(
             opt,
-            step_size=cfg_opt['lr_policy']['step_size'],
-            gamma=cfg_opt['lr_policy']['gamma'])
-    elif cfg_opt['lr_policy']['type'] == 'multistep':
+            step_size=lr_policy['step_size'],
+            gamma=lr_policy['gamma'])
+    elif lr_policy['type'] == 'multistep':
         scheduler = lr_scheduler.MultiStepLR(
             opt,
-            milestones=cfg_opt['lr_policy']['steps'],
-            gamma=cfg_opt['lr_policy']['gamma'])
+            milestones=lr_policy['steps'],
+            gamma=lr_policy['gamma'])
     else:
         raise NotImplementedError('Learning rate policy {} not implemented.'.
-                                   format(cfg_opt['lr_policy']['type']))
+                                   format(lr_policy['type']))
     return scheduler
 
 def get_loss(cfg_loss, device):
