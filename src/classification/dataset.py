@@ -8,7 +8,6 @@ from torchsampler import ImbalancedDatasetSampler
 from torchvision.datasets import ImageFolder
 
 import albumentations as A
-from albumentations.pytorch import ToTensorV2
 
 class Transforms:
     def __init__(
@@ -58,9 +57,9 @@ def get_dataset(data, pipeline):
                             shuffle=data['shuffle'], num_workers=data['num_workers'], pin_memory=True)
     return loader
 
-# def get_inference_dataset(cfg_data):
-#     transform = get_transforms(cfg_data)
-#     dataset = InferDataset(cfg_data['root'], transform=transform)
-#     loader = DataLoader(dataset, batch_size=cfg_data['batch_size'], 
-#                         num_workers=cfg_data['num_workers'], pin_memory=True)
-#     return loader
+def get_inference_dataset(data, pipeline):
+    transform = Transforms(pipeline)
+    dataset = InferDataset(data['root'], transform=transform)
+    loader = DataLoader(dataset, batch_size=data['batch_size'], 
+                        num_workers=data['num_workers'], pin_memory=True)
+    return loader

@@ -110,8 +110,7 @@ def main():
     parser.add_argument('-cfg', '--config', help='Config file path', type=str, default='', required=True)
     args = parser.parse_args()
     cfg_file = args.config
-    line = read_py_config(cfg_file)
-    exec(line, globals(), globals())
+    exec(read_py_config(cfg_file), globals(), globals())
     train_loader = get_dataset(cfg.train_data, cfg.train_pipeline)
     val_loader = get_dataset(cfg.val_data, cfg.val_pipeline)
     n_classes = len(train_loader.dataset.classes)
