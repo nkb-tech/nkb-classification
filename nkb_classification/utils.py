@@ -8,7 +8,7 @@ from torchsampler import ImbalancedDatasetSampler
 from torchvision.datasets import ImageFolder
 import timm
 
-from nkb_classification.dataset import Transforms, InferDataset, GroupsDataset
+from nkb_classification.dataset import Transforms, InferDataset, GroupsDataset, AnnotatedMultilabelDataset
 
 
 def get_experiment(cfg_exp):
@@ -78,6 +78,12 @@ def get_dataset(data, pipeline):
                                 data['ann_file'], 
                                 data['group_dict'],
                                 transform=transform)
+    elif data['type'] == 'AnnotatedMultilabelDataset':
+        dataset = AnnotatedMultilabelDataset(data['ann_file'],
+                                             data['target_name'],
+                                             data['fold'],
+                                             classes=data['classes'],
+                                             transform=transform)
     else:
         dataset = ImageFolder(data['root'], transform=transform)
     if data.get('weighted_sampling', False):

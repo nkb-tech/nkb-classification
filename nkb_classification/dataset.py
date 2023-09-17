@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 from pathlib import Path, PosixPath
 from PIL import Image
 import pickle as pkl
@@ -97,3 +98,34 @@ class GroupsDataset(Dataset):
             data_infos.append(info)
             
         return data_infos
+    
+
+class AnnotatedMultilabelDataset(Dataset):
+    def __init__(self, annotations_file, target_name, fold='test', classes=None, transform=None):
+        self.table = pd.read_csv(annotations_file, index_col=0)
+        self.table = self.table[self.table['fold'] == fold]
+        self.target_name = target_name
+        if classes is not None:
+            self.classes = classes
+        else:
+            self.classes = [*set(self.table[target_name].values)]
+        self.class_to_idx = {k: i for i, k in enumerate(self.classes)}
+        self.idx_to_class = {idx: lb for lb, idx in self.class_to_idx.items()}
+        self.transform = transform
+
+    def __len__(self):
+        return len(self.table)
+    
+    def __getitem__(self, idx):
+        path_column_num = self.table.columns.get_loc('path')
+        img_path = self.table.iloc[idx, path_column_num]
+        img = Image.open(img_path)
+        target_column_num = self.table.columns.get_loc(self.target_name)
+        label = self.table.iloc[idx, target_column_num]
+        label = np.array(self.class_to_idx[label], dtype=np.int64)
+        if self.transform is not None:
+            return self.transform(img), label
+        return img, label
+    
+    def get_labels(self):
+        return self.table[self.target_name].values
