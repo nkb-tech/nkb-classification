@@ -2,14 +2,14 @@ from comet_ml import Experiment
 
 import torch
 import torch.nn as nn
-from torch.optim import Adam, SparseAdam, SGD, lr_scheduler
+from torch.optim import Adam, SparseAdam, SGD, RAdam, lr_scheduler
 from torch.utils.data import Dataset, DataLoader
 from torchsampler import ImbalancedDatasetSampler
 from torchvision.datasets import ImageFolder
 import timm
 
 from nkb_classification.dataset import Transforms, InferDataset, GroupsDataset, AnnotatedMultilabelDataset
-
+    
 
 def get_experiment(cfg_exp):
     if cfg_exp is None:
@@ -22,6 +22,8 @@ def get_experiment(cfg_exp):
 def get_optimizer(model, cfg_opt):
     if cfg_opt['type'] == 'adam':
         return Adam(model.parameters(), lr=cfg_opt['lr'], weight_decay=cfg_opt.get('weight_decay', 0.0))
+    if cfg_opt['type'] == 'radam':
+        return RAdam(model.parameters(), lr=cfg_opt['lr'], weight_decay=cfg_opt.get('weight_decay', 0.0), decoupled_weight_decay=True)
     if cfg_opt['type'] == 'sparse_adam':
         return SparseAdam(model.parameters(), lr=cfg_opt['lr'], weight_decay=cfg_opt.get('weight_decay', 0.0))
     if cfg_opt['type'] == 'sgd':
@@ -56,7 +58,7 @@ def get_loss(cfg_loss, device):
     else:
         raise NotImplementedError(f'Unknown loss type in config: {cfg_loss["type"]}')
 
-def get_model(cfg_model, n_classes, device='cpu'):
+def get_model(cfg_model, n_classes, device='cpu', compile: bool=True):
     model = timm.create_model(cfg_model['model'], pretrained=cfg_model['pretrained'])
     if cfg_model['model'].startswith('vit'):
         model.head = nn.Linear(in_features=model.head.in_features, out_features=n_classes)
@@ -69,6 +71,8 @@ def get_model(cfg_model, n_classes, device='cpu'):
     if chkp is not None:
         model.load_state_dict(torch.load(chkp, map_location=device))
     model.to(device)
+    if compile:
+        model = torch.jit.script(model)
     return model
 
 def get_dataset(data, pipeline):
@@ -82,7 +86,6 @@ def get_dataset(data, pipeline):
         dataset = AnnotatedMultilabelDataset(data['ann_file'],
                                              data['target_name'],
                                              data['fold'],
-                                             classes=data['classes'],
                                              transform=transform)
     else:
         dataset = ImageFolder(data['root'], transform=transform)

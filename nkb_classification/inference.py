@@ -1,6 +1,5 @@
 from pathlib import Path
 from os.path import split
-import yaml
 import shutil
 import sys
 
@@ -43,7 +42,8 @@ def main():
     data_loader = get_inference_dataset(cfg.inference_data, cfg.inference_pipeline)
     device = torch.device(cfg.device)
     classes = cfg.inference_data['classes']
-    model = torch.jit.load(cfg.model['checkpoint']).to(torch.device(device))
+    model = torch.load(cfg.model['checkpoint']).to(torch.device(device))
+    model = torch.jit.script(model)
     save_path = Path(cfg.save_path)
     for i, name in classes.items():
         save_path.joinpath(name).mkdir(exist_ok=True, parents=True)
