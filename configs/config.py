@@ -10,7 +10,7 @@ n_epochs = 51
 device = 'cuda:1'
 enable_mixed_presicion = False
 enable_gradient_scaler = False
-model_path = '/home/denis/src/project/models/classification/dog_color/mobilenetv3_large_100_merged_classes_augs_high_res_strat_video_split_v3'
+model_path = '/home/denis/src/project/models/classification/dog_color/mobilenetv3_large_100_pure_colors_augs_high_res_strat_video_split_focal_v2'
 
 experiment = {
     'api_key': 'F0EvCaEPI2bgMyLl6pLhZ2SoM',
@@ -52,7 +52,7 @@ val_pipeline = A.Compose([
 
 train_data = {
     'type': 'AnnotatedMultilabelDataset',
-    'ann_file': '/home/denis/nkbtech/data/Dog_expo_Vladimir_02_07_2023_mp4_frames/multiclass_v4/annotation_dog_color_merged_classes_high_res_strat_video_split_v2.csv',
+    'ann_file': '/home/denis/nkbtech/data/Dog_expo_Vladimir_02_07_2023_mp4_frames/multiclass_v4/annotation_dog_color_pure_high_res_strat_video_split_v1.csv',
     'target_name': 'dog_color',
     'fold': 'train',
     'weighted_sampling': True,
@@ -64,13 +64,13 @@ train_data = {
 
 val_data = {
     'type': 'AnnotatedMultilabelDataset',
-    'ann_file': '/home/denis/nkbtech/data/Dog_expo_Vladimir_02_07_2023_mp4_frames/multiclass_v4/annotation_dog_color_merged_classes_high_res_strat_video_split_v2.csv',
+    'ann_file': '/home/denis/nkbtech/data/Dog_expo_Vladimir_02_07_2023_mp4_frames/multiclass_v4/annotation_dog_color_pure_high_res_strat_video_split_v1.csv',
     'target_name': 'dog_color',
     'fold': 'val',
     'weighted_sampling': False,
     'shuffle': True,
-    'batch_size': 16,
-    'num_workers': 2,
+    'batch_size': 64,
+    'num_workers': 4,
     'size': 224,
 }
 
@@ -90,4 +90,7 @@ lr_policy = {
     'gamma': 0.1,
 }
 
-criterion = nn.CrossEntropyLoss()
+criterion = {
+    'type': 'FocalLoss',
+    'gamma': 2
+}

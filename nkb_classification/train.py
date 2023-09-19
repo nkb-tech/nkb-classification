@@ -15,7 +15,7 @@ import argparse
 from tqdm import tqdm
 
 from nkb_classification.utils import get_experiment, get_model, \
-    get_optimizer, get_scheduler, get_dataset
+    get_optimizer, get_scheduler, get_loss, get_dataset
 
 import warnings
 warnings.filterwarnings("ignore")
@@ -48,7 +48,7 @@ def train(model,
     # Creates a GradScaler once at the beginning of training.
     scaler = GradScaler(enabled=cfg.enable_gradient_scaler)
 
-    model_saver: Callable[[nn.Module], None] = torch.jit.save if cfg.compile else torch.save
+    model_saver: Callable[[nn.Module], None] = torch.save if cfg.compile else torch.jit.save
 
     for epoch in tqdm(range(n_epochs), desc='Training epochs'):
         model.train()
@@ -168,10 +168,14 @@ def train(model,
 
                 metrics_grad_log = defaultdict(list)
 
+        # model_scripter = lambda x: x if cfg.compile else torch.jit.script
+        # m = model_scripter(model)
+
+        m = torch.jit.script(model)
         if val_acc > best_val_acc:
             best_val_acc = val_acc
-            model_saver(model, Path(model_path, 'best.pth'))
-        model_saver(model, Path(model_path, 'last.pth'))
+            model_saver(m, Path(model_path, 'best.pth'))
+        model_saver(m, Path(model_path, 'last.pth'))
         
 def read_py_config(path):
     path = Path(path)
@@ -192,10 +196,11 @@ def main():
     model = get_model(cfg.model, n_classes, device, compile=cfg.compile)
     optimizer = get_optimizer(model, cfg.optimizer)
     scheduler = get_scheduler(optimizer, cfg.lr_policy)
+    criterion = get_loss(cfg.criterion, cfg.device)
     experiment = get_experiment(cfg.experiment)
     experiment.log_code(cfg_file)
     train(model, train_loader, val_loader,
-          optimizer, scheduler, cfg.criterion, experiment, 
+          optimizer, scheduler, criterion, experiment, 
           device, cfg)
 
 if __name__ == '__main__':
