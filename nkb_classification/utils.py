@@ -82,6 +82,11 @@ def get_model(cfg_model, n_classes, device='cpu', compile: bool=True):
     model.to(device)
     if compile:
         model = torch.jit.script(model)
+
+    layers_to_unfreeze = cfg_model.get('layers_to_unfreeze', None)
+    if layers_to_unfreeze is not None:
+        for param in [*model.parameters()][:-layers_to_unfreeze]:
+            param.requires_grad = False
     return model
 
 def get_dataset(data, pipeline):

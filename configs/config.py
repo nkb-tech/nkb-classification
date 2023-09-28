@@ -5,12 +5,12 @@ from os.path import split
 import cv2
 
 compile = False
-log_gradients = False
-n_epochs = 51
+log_gradients = True
+n_epochs = 21
 device = 'cuda:1'
 enable_mixed_presicion = False
 enable_gradient_scaler = False
-model_path = '/home/denis/src/project/models/classification/dog_color/mobilenetv3_large_100_pure_colors_augs_high_res_strat_video_split_focal_v2'
+model_path = '/home/denis/src/project/models/classification/dog_color/mobilenetv3_large_100_merged_classes_augs_high_res_strat_video_split_v6'
 
 experiment = {
     'api_key': 'F0EvCaEPI2bgMyLl6pLhZ2SoM',
@@ -21,10 +21,8 @@ experiment = {
 }
 
 train_pipeline = A.Compose([
-    A.LongestMaxSize(max_size=224, always_apply=True),
-    A.PadIfNeeded(224, 224, always_apply=True, border_mode=cv2.BORDER_REFLECT_101),
-   A.Resize(224, 224), 
-   A.MotionBlur(blur_limit=3,
+    A.Resize(224, 224), 
+    A.MotionBlur(blur_limit=3,
                  allow_shifted=True,
                  p=0.5),
     A.RandomBrightnessContrast(
@@ -32,6 +30,16 @@ train_pipeline = A.Compose([
         contrast_limit=(0.1, -0.5),
         p=0.5,
     ),
+    A.HueSaturationValue(hue_shift_limit=0, 
+                        sat_shift_limit=10, 
+                        val_shift_limit=50,
+                        p=0.5),
+    A.RandomShadow(always_apply=True),
+    A.RandomFog(fog_coef_lower=0.3, 
+                fog_coef_upper=0.5, 
+                alpha_coef=0.28,
+                p=0.5),
+    A.RandomRain(p=0.5),
     A.Normalize(
         mean=(0.485, 0.456, 0.406),
         std=(0.229, 0.224, 0.225),
@@ -40,8 +48,6 @@ train_pipeline = A.Compose([
 ])
 
 val_pipeline = A.Compose([
-    A.LongestMaxSize(max_size=224, always_apply=True),
-    A.PadIfNeeded(224, 224, always_apply=True, border_mode=cv2.BORDER_REFLECT_101),
     A.Resize(224, 224),
     A.Normalize(
         mean=(0.485, 0.456, 0.406),
@@ -52,7 +58,7 @@ val_pipeline = A.Compose([
 
 train_data = {
     'type': 'AnnotatedMultilabelDataset',
-    'ann_file': '/home/denis/nkbtech/data/Dog_expo_Vladimir_02_07_2023_mp4_frames/multiclass_v4/annotation_dog_color_pure_high_res_strat_video_split_v1.csv',
+    'ann_file': '/home/denis/nkbtech/data/Dog_expo_Vladimir_02_07_2023_mp4_frames/multiclass_v4/annotation_dog_color_merged_classes_high_res_strat_video_split_v5.csv',
     'target_name': 'dog_color',
     'fold': 'train',
     'weighted_sampling': True,
@@ -64,7 +70,7 @@ train_data = {
 
 val_data = {
     'type': 'AnnotatedMultilabelDataset',
-    'ann_file': '/home/denis/nkbtech/data/Dog_expo_Vladimir_02_07_2023_mp4_frames/multiclass_v4/annotation_dog_color_pure_high_res_strat_video_split_v1.csv',
+    'ann_file': '/home/denis/nkbtech/data/Dog_expo_Vladimir_02_07_2023_mp4_frames/multiclass_v4/annotation_dog_color_merged_classes_high_res_strat_video_split_v5.csv',
     'target_name': 'dog_color',
     'fold': 'val',
     'weighted_sampling': False,
@@ -77,6 +83,7 @@ val_data = {
 model = {
     'model': 'mobilenetv3_large_100',
     'pretrained': True,
+    'layers_to_unfreeze': 7
 }
 
 optimizer = {
@@ -86,11 +93,10 @@ optimizer = {
 }
 lr_policy = {
     'type': 'multistep',
-    'steps': [10, 30],
+    'steps': [10, ],
     'gamma': 0.1,
 }
 
 criterion = {
-    'type': 'FocalLoss',
-    'gamma': 2
+    'type': 'CrossEntropyLoss'
 }
