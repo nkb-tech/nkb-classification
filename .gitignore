@@ -127,3 +127,7 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# Bash train script
+nkb_classification/train
+!nkb_classification/train.py
