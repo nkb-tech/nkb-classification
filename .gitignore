@@ -131,3 +131,7 @@ dmypy.json
 # Bash train script
 nkb_classification/train
 !nkb_classification/train.py
+
+# Configs
+configs/old
+configs/color_mappings
