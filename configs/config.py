@@ -4,20 +4,22 @@ from albumentations.pytorch import ToTensorV2
 from os.path import split
 import cv2
 
-compile = False
-log_gradients = True
-n_epochs = 21
+compile = False # Is not working correctly yet, so set to False
+log_gradients = False
+n_epochs = 20 + 1
 device = 'cuda:1'
-enable_mixed_presicion = False
-enable_gradient_scaler = False
-model_path = '/home/denis/src/project/models/classification/dog_color/mobilenetv3_large_100_merged_classes_augs_high_res_strat_video_split_v6'
+enable_mixed_presicion = True
+enable_gradient_scaler = True
+
+target_name = 'dog_leg_len'
+model_path = f'/home/denis/src/project/models/classification/trial/v1'
 
 experiment = {
     'api_key': 'F0EvCaEPI2bgMyLl6pLhZ2SoM',
     'project_name': 'PetSearch',
     'workspace': 'dentikka',
     'auto_metric_logging': False,
-    'name': 'dog_color_'+split(model_path)[-1],
+    'name': f'{target_name}_'+split(model_path)[-1],
 }
 
 train_pipeline = A.Compose([
@@ -58,8 +60,8 @@ val_pipeline = A.Compose([
 
 train_data = {
     'type': 'AnnotatedMultilabelDataset',
-    'ann_file': '/home/denis/nkbtech/data/Dog_expo_Vladimir_02_07_2023_mp4_frames/multiclass_v4/annotation_dog_color_merged_classes_high_res_strat_video_split_v5.csv',
-    'target_name': 'dog_color',
+    'ann_file': f'/home/denis/nkbtech/data/Dog_expo_Vladimir_02_07_2023_mp4_frames/multiclass_v4/annotation_{target_name}_high_res_strat_video_split_final_v1.csv',
+    'target_name': target_name,
     'fold': 'train',
     'weighted_sampling': True,
     'shuffle': True,
@@ -70,8 +72,8 @@ train_data = {
 
 val_data = {
     'type': 'AnnotatedMultilabelDataset',
-    'ann_file': '/home/denis/nkbtech/data/Dog_expo_Vladimir_02_07_2023_mp4_frames/multiclass_v4/annotation_dog_color_merged_classes_high_res_strat_video_split_v5.csv',
-    'target_name': 'dog_color',
+    'ann_file': f'/home/denis/nkbtech/data/Dog_expo_Vladimir_02_07_2023_mp4_frames/multiclass_v4/annotation_{target_name}_high_res_strat_video_split_final_v1.csv',
+    'target_name': target_name,
     'fold': 'val',
     'weighted_sampling': False,
     'shuffle': True,
@@ -82,8 +84,7 @@ val_data = {
 
 model = {
     'model': 'mobilenetv3_large_100',
-    'pretrained': True,
-    'layers_to_unfreeze': 7
+    'pretrained': True
 }
 
 optimizer = {

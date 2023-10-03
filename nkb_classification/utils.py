@@ -79,8 +79,11 @@ def get_model(cfg_model, n_classes, device='cpu', compile: bool=True):
     chkp = cfg_model.get('checkpoint', None)
     if chkp is not None:
         model.load_state_dict(torch.load(chkp, map_location=device))
+
     model.to(device)
     if compile:
+        model = torch.compile(model, mode='reduce-overhead')
+    else:
         model = torch.jit.script(model)
 
     layers_to_unfreeze = cfg_model.get('layers_to_unfreeze', None)

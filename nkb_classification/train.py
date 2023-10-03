@@ -1,6 +1,9 @@
 from pathlib import Path
 import numpy as np
 import sys
+
+import comet_ml
+
 from sklearn.metrics import balanced_accuracy_score, roc_auc_score
 from collections import defaultdict
 from typing import Callable
@@ -48,7 +51,8 @@ def train(model,
     # Creates a GradScaler once at the beginning of training.
     scaler = GradScaler(enabled=cfg.enable_gradient_scaler)
 
-    model_saver: Callable[[nn.Module], None] = torch.save if cfg.compile else torch.jit.save
+    model_saver: Callable[[nn.Module], None] = torch.jit.save if not cfg.compile else torch.save
+    model_scripter: Callable[[nn.Module], nn.Module or torch.jit.ScriptModule] = torch.jit.script if not cfg.compile else lambda x: x
 
     for epoch in tqdm(range(n_epochs), desc='Training epochs'):
         model.train()
@@ -111,6 +115,7 @@ def train(model,
 
         if scheduler is not None:
             scheduler.step()
+
         model.eval()
         logged = False
         for img, target in tqdm(val_loader, leave=False, desc='Evaluating'):
@@ -138,11 +143,12 @@ def train(model,
         
         train_acc = balanced_accuracy_score(train_ground_truth, train_predictions)
         val_acc = balanced_accuracy_score(val_ground_truth, val_predictions)
-        try:
+        if len(train_confidences[0]) > 2:
             train_roc_auc = roc_auc_score(train_ground_truth, train_confidences, average=None, multi_class='ovr')
             val_roc_auc = roc_auc_score(val_ground_truth, val_confidences, average=None, multi_class='ovr')
-        except:
-            import pdb; pdb.set_trace()
+        else:
+            train_roc_auc = roc_auc_score(train_ground_truth, np.array(train_confidences)[:, 1])
+            val_roc_auc = roc_auc_score(val_ground_truth, np.array(val_confidences)[:, 1])
         print(f'Epoch {epoch} train roc_auc {train_roc_auc}')
         print(f'Epoch {epoch} train balanced accuracy {train_acc}')
         print(f'Epoch {epoch} val roc_auc {val_roc_auc}')
@@ -152,26 +158,26 @@ def train(model,
         if experiment is not None:
             experiment.log_metric(f'Average epoch train loss', epoch_train_loss, epoch=epoch, step=epoch)
             experiment.log_metric(f'Average epoch val loss', epoch_val_loss, epoch=epoch, step=epoch)
-            for roc_auc, class_name in zip(train_roc_auc, train_loader.dataset.classes):
-                experiment.log_metric(f'Train ROC AUC, {class_name}', roc_auc, epoch=epoch, step=epoch)
-            experiment.log_metric(f'Train ROC AUC', np.mean(train_roc_auc), epoch=epoch, step=epoch)
-            for roc_auc, class_name in zip(val_roc_auc, val_loader.dataset.classes):
-                experiment.log_metric(f'Validation ROC AUC, {class_name}', roc_auc, epoch=epoch, step=epoch)
+            if len(train_confidences[0]) > 2:
+                for roc_auc, class_name in zip(train_roc_auc, train_loader.dataset.classes):
+                    experiment.log_metric(f'Train ROC AUC, {class_name}', roc_auc, epoch=epoch, step=epoch)
+                experiment.log_metric(f'Train ROC AUC', np.mean(train_roc_auc), epoch=epoch, step=epoch)
+                for roc_auc, class_name in zip(val_roc_auc, val_loader.dataset.classes):
+                    experiment.log_metric(f'Validation ROC AUC, {class_name}', roc_auc, epoch=epoch, step=epoch)
+            else:
+                experiment.log_metric(f'Train ROC AUC', train_roc_auc, epoch=epoch, step=epoch)
+                experiment.log_metric(f'Validation ROC AUC', val_roc_auc, epoch=epoch, step=epoch)
             experiment.log_metric(f'Validation ROC AUC', np.mean(val_roc_auc), epoch=epoch, step=epoch)
             experiment.log_metric(f'Train balanced accuracy', train_acc, epoch=epoch, step=epoch)
             experiment.log_metric(f'Validation balanced accuracy', val_acc, epoch=epoch, step=epoch)
             experiment.log_confusion_matrix(val_ground_truth, val_predictions, labels=label_names, epoch=epoch)
-
             if cfg.log_gradients:
                 for key, value in metrics_grad_log.items():
                     experiment.log_metric(key, torch.nanmean(torch.stack(value)), epoch=epoch, step=epoch)
-
                 metrics_grad_log = defaultdict(list)
 
-        # model_scripter = lambda x: x if cfg.compile else torch.jit.script
-        # m = model_scripter(model)
+        m = model_scripter(model)
 
-        m = torch.jit.script(model)
         if val_acc > best_val_acc:
             best_val_acc = val_acc
             model_saver(m, Path(model_path, 'best.pth'))
