@@ -6,20 +6,20 @@ import cv2
 
 compile = False # Is not working correctly yet, so set to False
 log_gradients = False
-n_epochs = 20 + 1
+n_epochs = 50 + 1
 device = 'cuda:1'
 enable_mixed_presicion = True
 enable_gradient_scaler = True
 
-target_name = 'dog_leg_len'
-model_path = f'/home/denis/src/project/models/classification/trial/v1'
+target_names = ['dog_size', 'dog_fur', 'dog_color', 'dog_ear_type', 'dog_muzzle_len', 'dog_leg_len']
+model_path = f'/home/denis/src/project/models/classification/multitask/efficientnet_b2_v1'
 
 experiment = {
     'api_key': 'F0EvCaEPI2bgMyLl6pLhZ2SoM',
-    'project_name': 'PetSearch',
+    'project_name': 'PetSearch_MultiTask',
     'workspace': 'dentikka',
     'auto_metric_logging': False,
-    'name': f'{target_name}_'+split(model_path)[-1],
+    'name': split(model_path)[-1],
 }
 
 train_pipeline = A.Compose([
@@ -60,10 +60,10 @@ val_pipeline = A.Compose([
 
 train_data = {
     'type': 'AnnotatedMultilabelDataset',
-    'ann_file': f'/home/denis/nkbtech/data/Dog_expo_Vladimir_02_07_2023_mp4_frames/multiclass_v4/annotation_{target_name}_high_res_strat_video_split_final_v1.csv',
-    'target_name': target_name,
+    'ann_file': '/home/denis/nkbtech/data/Dog_expo_Vladimir_02_07_2023_mp4_frames/multiclass_v4/multitask/annotation_high_res_video_split_v1.csv',
+    'target_names': target_names,
     'fold': 'train',
-    'weighted_sampling': True,
+    'weighted_sampling': False,
     'shuffle': True,
     'batch_size': 64,
     'num_workers': 4,
@@ -72,8 +72,8 @@ train_data = {
 
 val_data = {
     'type': 'AnnotatedMultilabelDataset',
-    'ann_file': f'/home/denis/nkbtech/data/Dog_expo_Vladimir_02_07_2023_mp4_frames/multiclass_v4/annotation_{target_name}_high_res_strat_video_split_final_v1.csv',
-    'target_name': target_name,
+    'ann_file': '/home/denis/nkbtech/data/Dog_expo_Vladimir_02_07_2023_mp4_frames/multiclass_v4/multitask/annotation_high_res_video_split_v1.csv',
+    'target_names': target_names,
     'fold': 'val',
     'weighted_sampling': False,
     'shuffle': True,
@@ -83,18 +83,18 @@ val_data = {
 }
 
 model = {
-    'model': 'mobilenetv3_large_100',
+    'model': 'efficientnet_b2',
     'pretrained': True
 }
 
 optimizer = {
     'type': 'radam',
-    'lr': 0.00001,
-    'weight_decay': 0.001,
+    'lr': 1e-5,
+    'weight_decay': 0.1,
 }
 lr_policy = {
     'type': 'multistep',
-    'steps': [10, ],
+    'steps': [30, ],
     'gamma': 0.1,
 }
 

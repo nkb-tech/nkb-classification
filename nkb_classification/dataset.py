@@ -101,28 +101,29 @@ class GroupsDataset(Dataset):
     
 
 class AnnotatedMultilabelDataset(Dataset):
-    def __init__(self, annotations_file, target_name, fold='test', classes=None, transform=None):
+    def __init__(self, annotations_file, target_names, fold='test', transform=None):
         self.table = pd.read_csv(annotations_file, index_col=0)
         self.table = self.table[self.table['fold'] == fold]
-        self.target_name = target_name
-        self.classes = np.sort(np.unique(self.table[target_name].values))
-        self.class_to_idx = {k: i for i, k in enumerate(self.classes)}
-        self.idx_to_class = {idx: lb for lb, idx in self.class_to_idx.items()}
+        self.target_names = [*sorted(target_names)]
+        self.classes = {target_name: np.sort(np.unique(self.table[target_name].values)) 
+                        for target_name in self.target_names}
+        self.class_to_idx = {target_name: {k: i for i, k in enumerate(classes)} 
+                             for target_name, classes in self.classes.items()}
+        self.idx_to_class = {target_name: {idx: lb for lb, idx in class_to_idx.items()} 
+                             for target_name, class_to_idx in self.class_to_idx.items()}
         self.transform = transform
 
     def __len__(self):
         return len(self.table)
     
     def __getitem__(self, idx):
-        path_column_num = self.table.columns.get_loc('path')
-        img_path = self.table.iloc[idx, path_column_num]
+        img_path = self.table.iloc[idx, self.table.columns.get_loc('path')]
         img = Image.open(img_path)
-        target_column_num = self.table.columns.get_loc(self.target_name)
-        label = self.table.iloc[idx, target_column_num]
-        label = np.array(self.class_to_idx[label], dtype=np.int64)
+        labels = np.array([self.class_to_idx[target_name][self.table.iloc[idx, self.table.columns.get_loc(target_name)]]
+                           for target_name in self.target_names], dtype=np.int64)
         if self.transform is not None:
-            return self.transform(img), label
-        return img, label
+            return self.transform(img), labels
+        return img, labels
     
     def get_labels(self):
-        return self.table[self.target_name].values
+        return self.table[self.target_names].values
