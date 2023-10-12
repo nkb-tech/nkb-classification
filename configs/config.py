@@ -12,7 +12,7 @@ enable_mixed_presicion = True
 enable_gradient_scaler = True
 
 target_names = ['dog_size', 'dog_fur', 'dog_color', 'dog_ear_type', 'dog_muzzle_len', 'dog_leg_len']
-model_path = f'/home/denis/src/project/models/classification/multitask/efficientnet_b2_v1'
+model_path = f'/home/denis/src/project/models/classification/multitask/efficientnet_b2_v4'
 
 experiment = {
     'api_key': 'F0EvCaEPI2bgMyLl6pLhZ2SoM',
@@ -94,7 +94,7 @@ optimizer = {
 }
 lr_policy = {
     'type': 'multistep',
-    'steps': [30, ],
+    'steps': [10, ],
     'gamma': 0.1,
 }
 
