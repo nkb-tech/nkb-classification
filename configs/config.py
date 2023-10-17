@@ -12,7 +12,7 @@ enable_mixed_presicion = True
 enable_gradient_scaler = True
 
 target_names = ['dog_size', 'dog_fur', 'dog_color', 'dog_ear_type', 'dog_muzzle_len', 'dog_leg_len']
-model_path = f'/home/denis/src/project/models/classification/multitask/convnext_base_v3'
+model_path = f'/home/denis/src/project/models/classification/multitask/beit_base_patch16_224_v1'
 
 experiment = {
     'api_key': 'F0EvCaEPI2bgMyLl6pLhZ2SoM',
@@ -95,7 +95,7 @@ val_data = {
 }
 
 model = {
-    'model': 'convnext_base',
+    'model': 'beit_base_patch16_224',
     'pretrained': True,
     'classifier dropout': 0.2
 }

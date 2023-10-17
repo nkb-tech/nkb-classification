@@ -22,36 +22,52 @@ class MultilabelModel(nn.Module):
                  classes):
         super().__init__()
         initial_model = timm.create_model(cfg_model['model'], pretrained=cfg_model['pretrained'])
-        if cfg_model['model'].startswith('efficientnet') or cfg_model['model'].startswith('mobilenet'):
+        self.name = cfg_model['model']
+        if self.name.startswith('efficientnet') or self.name.startswith('mobilenet'):
             emb_size = initial_model.classifier.in_features
             self.emb_model = nn.Sequential(*[*initial_model.children()][:-1],
                                             nn.Flatten())
-        elif cfg_model['model'].startswith('convnext'):
+        elif self.name.startswith('convnext'):
             emb_size = initial_model.head.in_features
             new_head = nn.Sequential(*[*[*initial_model.children()][-1].children()][:-2])
             self.emb_model = nn.Sequential(*[*initial_model.children()][:-1],
                                             new_head)
-        elif cfg_model['model'].startswith('resnet'):
+        elif self.name.startswith('resnet'):
             emb_size = initial_model.fc.in_features
             self.emb_model = nn.Sequential(*[*initial_model.children()][:-1],
                                             nn.Flatten())
-        elif cfg_model['model'].startswith('vit'):
+        elif self.name.startswith('vit'):
             emb_size = initial_model.patch_embed.num_patches * initial_model.head.in_features
             self.emb_model = nn.Sequential(*[*initial_model.children()][:-2],
                                             nn.Flatten())
-        
+        elif self.name.startswith('beit'):
+            emb_size = initial_model.head.in_features
+            self.model = initial_model
 
         self.classifiers = nn.ModuleDict()
         for target_name in classes:
             self.classifiers[target_name] = nn.Sequential(nn.Dropout(cfg_model['classifier dropout']),
                                                           nn.Linear(emb_size, len(classes[target_name])))
+        
+        if self.name.startswith('beit'):
+            def classifiers_forward(x):
+                return {
+                    class_name: classifier(x)
+                    for class_name, classifier in self.classifiers.items()
+                }
+            self.classifiers.forward = classifiers_forward
+            self.model.head = self.classifiers
+            
 
     def forward(self, x):
-        emb = self.emb_model(x)
-        return {
-            class_name: classifier(emb)
-            for class_name, classifier in self.classifiers.items()
-        }
+        if self.name.startswith('beit'):
+            return self.model(x)
+        else:
+            emb = self.emb_model(x)
+            return {
+                class_name: classifier(emb)
+                for class_name, classifier in self.classifiers.items()
+            }
 
 
 class FocalLoss(nn.Module):
