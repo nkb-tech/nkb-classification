@@ -5,7 +5,7 @@ import sys
 import comet_ml
 
 from collections import defaultdict
-from typing import Callable
+from typing import Callable, Union
 
 import torch
 import torch.nn as nn
@@ -35,7 +35,6 @@ def train(model,
     model_path = Path(cfg.model_path)
     model_path.mkdir(exist_ok=True, parents=True)
     n_epochs = cfg.n_epochs
-    epoch_train_loss, epoch_val_loss = [], []
     best_val_acc = 0
     inv_transform = transforms.Compose([
         transforms.Normalize(mean = [ 0., 0., 0. ],
@@ -51,8 +50,8 @@ def train(model,
     # Creates a GradScaler once at the beginning of training.
     scaler = GradScaler(enabled=cfg.enable_gradient_scaler)
 
-    model_saver: Callable[[nn.Module], None] = torch.jit.save if not cfg.compile else torch.save
-    model_scripter: Callable[[nn.Module], nn.Module or torch.jit.ScriptModule] = torch.jit.script if not cfg.compile else lambda x: x
+    model_saver: Callable[[nn.Module], None] = torch.save
+    model_scripter: Callable[[nn.Module], Union[nn.Module, torch.jit.ScriptModule]] = lambda x: x
 
     for epoch in tqdm(range(n_epochs), desc='Training epochs'):
         model.train()
@@ -70,17 +69,16 @@ def train(model,
             metrics_grad_log = defaultdict(list)
 
         for img, target in tqdm(train_loader, leave=False, desc='Training iters'):
-            img, target = img.float().to(device), target.long().to(device)
+            img = img.to(device)
             optimizer.zero_grad()
 
             with torch.autocast(device_type='cuda', dtype=torch.float16, enabled=cfg.enable_mixed_presicion):
                 preds = model(img)
                 loss = 0
 
-                for pred, tgt, tgt_name in zip(preds, target.T, target_names):
-
-                    target_loss = criterion(pred, tgt)
-                    train_running_loss[tgt_name].append(target_loss.item())
+                for target_name in target_names:
+                    target_loss = criterion(preds[target_name], target[target_name].to(device))
+                    train_running_loss[target_name].append(target_loss.item())
                     loss += target_loss
 
             train_running_loss['loss'].append(loss.item())
@@ -88,9 +86,6 @@ def train(model,
             scaler.scale(loss).backward()
             scaler.step(optimizer)
             scaler.update()
-
-            preds = {target_name: pred for target_name, pred in zip(target_names, preds)}
-            target = {target_name: tgt for target_name, tgt in zip(target_names, target.T)}
 
             for target_name in target_names:
                 train_ground_truth[target_name].extend(list(target[target_name].cpu().numpy()))
@@ -122,20 +117,16 @@ def train(model,
         model.eval()
         logged = False
         for img, target in tqdm(val_loader, leave=False, desc='Evaluating'):
-            img, target = img.float().to(device), target.long().to(device)
+            img = img.to(device)
             with torch.no_grad(), torch.autocast(device_type='cuda', dtype=torch.float16, enabled=cfg.enable_mixed_presicion):
                 preds = model(img)
                 loss = 0
-                for pred, tgt, tgt_name in zip(preds, target.T, target_names):
-
-                    target_loss = criterion(pred, tgt)
-                    val_running_loss[tgt_name].append(target_loss.item())
+                for target_name in target_names:
+                    target_loss = criterion(preds[target_name], target[target_name].to(device))
+                    val_running_loss[target_name].append(target_loss.item())
                     loss += target_loss
 
             val_running_loss['loss'].append(loss.item())
-
-            preds = {target_name: pred for target_name, pred in zip(target_names, preds)}
-            target = {target_name: tgt for target_name, tgt in zip(target_names, target.T)}
             
             for target_name in target_names:
                 val_ground_truth[target_name].extend(list(target[target_name].cpu().numpy()))
@@ -156,8 +147,9 @@ def train(model,
                 experiment.log_image(grid, name=f'Epoch {epoch}', step=epoch)
                 logged = True
 
+        epoch_train_acc, epoch_val_acc = [], []
         for target_name in target_names:
-            log_metrics(experiment, 
+            train_acc, val_acc = log_metrics(experiment, 
                 target_name,
                 label_names[target_name],
                 epoch,
@@ -169,6 +161,9 @@ def train(model,
                 val_confidences[target_name],
                 val_predictions[target_name],
                 val_ground_truth[target_name])
+            epoch_train_acc.append(train_acc)
+            epoch_val_acc.append(val_acc)
+
         experiment.log_metric('Train loss', np.mean(train_running_loss['loss']), epoch=epoch, step=epoch)
         experiment.log_metric('Validation loss', np.mean(val_running_loss['loss']), epoch=epoch, step=epoch)
 
@@ -180,9 +175,13 @@ def train(model,
 
         m = model_scripter(model)
 
-        # if val_acc > best_val_acc:
-        #     best_val_acc = val_acc
-        #     model_saver(m, Path(model_path, 'best.pth'))
+        epoch_train_acc, epoch_val_acc = np.mean(epoch_train_acc), np.mean(epoch_val_acc)
+        experiment.log_metric('Train balanced accuracy', epoch_train_acc, epoch=epoch, step=epoch)
+        experiment.log_metric('Validation balanced accuracy', epoch_val_acc, epoch=epoch, step=epoch)
+
+        if epoch_val_acc > best_val_acc:
+            best_val_acc = val_acc
+            model_saver(m, Path(model_path, 'best.pth'))
         model_saver(m, Path(model_path, 'last.pth'))
         
 def read_py_config(path):

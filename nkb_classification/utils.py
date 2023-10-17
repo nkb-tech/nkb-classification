@@ -21,22 +21,37 @@ class MultilabelModel(nn.Module):
                  cfg_model, 
                  classes):
         super().__init__()
-        self.emb_model = timm.create_model(cfg_model['model'], pretrained=cfg_model['pretrained'])
+        initial_model = timm.create_model(cfg_model['model'], pretrained=cfg_model['pretrained'])
         if cfg_model['model'].startswith('efficientnet') or cfg_model['model'].startswith('mobilenet'):
-            emb_size = self.emb_model.classifier.in_features
-        elif cfg_model['model'].startswith('vit'):
-            emb_size = self.emb_model.head.in_features
+            emb_size = initial_model.classifier.in_features
+            self.emb_model = nn.Sequential(*[*initial_model.children()][:-1],
+                                            nn.Flatten())
+        elif cfg_model['model'].startswith('convnext'):
+            emb_size = initial_model.head.in_features
+            new_head = nn.Sequential(*[*[*initial_model.children()][-1].children()][:-2])
+            self.emb_model = nn.Sequential(*[*initial_model.children()][:-1],
+                                            new_head)
         elif cfg_model['model'].startswith('resnet'):
-            emb_size = self.emb_model.fc.in_features
-        self.emb_model = nn.Sequential(*[*self.emb_model.children()][:-1])
+            emb_size = initial_model.fc.in_features
+            self.emb_model = nn.Sequential(*[*initial_model.children()][:-1],
+                                            nn.Flatten())
+        elif cfg_model['model'].startswith('vit'):
+            emb_size = initial_model.patch_embed.num_patches * initial_model.head.in_features
+            self.emb_model = nn.Sequential(*[*initial_model.children()][:-2],
+                                            nn.Flatten())
+        
 
         self.classifiers = nn.ModuleDict()
         for target_name in classes:
-            self.classifiers[target_name] = nn.Linear(emb_size, len(classes[target_name]))
+            self.classifiers[target_name] = nn.Sequential(nn.Dropout(cfg_model['classifier dropout']),
+                                                          nn.Linear(emb_size, len(classes[target_name])))
 
     def forward(self, x):
         emb = self.emb_model(x)
-        return (classifier(emb) for _, classifier in self.classifiers.items())
+        return {
+            class_name: classifier(emb)
+            for class_name, classifier in self.classifiers.items()
+        }
 
 
 class FocalLoss(nn.Module):
@@ -141,9 +156,7 @@ def get_model(cfg_model, classes, device='cpu', compile: bool=True):
 
     model.to(device)
     if compile:
-        model = torch.compile(model, mode='reduce-overhead')
-    else:
-        model = torch.jit.script(model)
+        model = torch.compile(model)
 
     return model
 
@@ -222,3 +235,5 @@ def log_metrics(experiment,
         experiment.log_metric(f'{target_name} Train balanced accuracy', train_acc, epoch=epoch, step=epoch)
         experiment.log_metric(f'{target_name} Validation balanced accuracy', val_acc, epoch=epoch, step=epoch)
         experiment.log_confusion_matrix(val_ground_truth, val_predictions, labels=label_names, epoch=epoch)
+
+    return train_acc, val_acc

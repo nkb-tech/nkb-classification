@@ -1,3 +1,4 @@
+import cv2
 import numpy as np
 import pandas as pd
 from pathlib import Path, PosixPath
@@ -118,9 +119,12 @@ class AnnotatedMultilabelDataset(Dataset):
     
     def __getitem__(self, idx):
         img_path = self.table.iloc[idx, self.table.columns.get_loc('path')]
-        img = Image.open(img_path)
-        labels = np.array([self.class_to_idx[target_name][self.table.iloc[idx, self.table.columns.get_loc(target_name)]]
-                           for target_name in self.target_names], dtype=np.int64)
+        img = cv2.imread(img_path)
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        labels = {
+            target_name: np.array(self.class_to_idx[target_name][self.table.iloc[idx, self.table.columns.get_loc(target_name)]], dtype=np.int64)
+            for target_name in self.target_names
+        }
         if self.transform is not None:
             return self.transform(img), labels
         return img, labels
