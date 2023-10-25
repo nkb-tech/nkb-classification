@@ -31,21 +31,22 @@ class Transforms:
 
 
 class InferDataset(Dataset):
-    def __init__(self, folder_path, annotations_file, target_names, transform=None):
+    def __init__(self, folder_path, train_annotations_file, target_names, transform=None):
         super(InferDataset, self,).__init__()
         self.ext = ['.jpg', '.jpeg', '.png']
         self.folder = Path(folder_path)
-        self.ann_table = pd.read_csv(annotations_file, index_col=0)
-        self.ann_table = self.ann_table[self.ann_table['fold'] == 'train']
+        self.train_ann_table = pd.read_csv(train_annotations_file, index_col=0) # in order to inherit the set of classes
+                                                                                # that the model saw during training
+        self.train_ann_table = self.train_ann_table[self.train_ann_table['fold'] == 'train']
         self.target_names = [*sorted(target_names)]
-        self.classes = {target_name: np.sort(np.unique(self.ann_table[target_name].values)) 
+        self.classes = {target_name: np.sort(np.unique(self.train_ann_table[target_name].values)) 
                         for target_name in self.target_names}
         self.class_to_idx = {target_name: {k: i for i, k in enumerate(classes)} 
                              for target_name, classes in self.classes.items()}
         self.idx_to_class = {target_name: {idx: lb for lb, idx in class_to_idx.items()} 
                              for target_name, class_to_idx in self.class_to_idx.items()}
         self.transform = transform # some infer transform
-        self.imgs = [p for p in self.folder.iterdir() if p.suffix.lower() in self.ext]
+        self.imgs = [str(p) for p in self.folder.iterdir() if p.suffix.lower() in self.ext]
 
     def __len__(self):
         return len(self.imgs)

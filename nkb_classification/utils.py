@@ -234,7 +234,10 @@ def get_dataset(data, pipeline):
 
 def get_inference_dataset(data, pipeline):
     transform = Transforms(pipeline)
-    dataset = InferDataset(data['root'], transform=transform)
+    dataset = InferDataset(data['root'], 
+                           data['train_annotations_file'],
+                           data['target_names'],
+                           transform=transform)
     loader = DataLoader(dataset, batch_size=data['batch_size'], 
                         num_workers=data['num_workers'], pin_memory=True)
     return loader

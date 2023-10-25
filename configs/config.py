@@ -84,7 +84,7 @@ train_data = {
     'shuffle': True,
     'batch_size': 64,
     'num_workers': 8,
-    'size': 224,
+    'size': img_size,
 }   
 
 val_data = {
@@ -96,7 +96,7 @@ val_data = {
     'shuffle': True,
     'batch_size': 64,
     'num_workers': 8,
-    'size': 224,
+    'size': img_size,
 }
 
 model = {
