@@ -5,26 +5,30 @@ from os.path import split
 import cv2
 
 compile = False # Is not working correctly yet, so set to False
-log_gradients = False
-n_epochs = 10 + 1
+log_gradients = True
+n_epochs = 30 + 1
 device = 'cuda:1'
 enable_mixed_presicion = True
 enable_gradient_scaler = True
 
 target_names = ['dog_size', 'dog_fur', 'dog_color', 'dog_ear_type', 'dog_muzzle_len', 'dog_leg_len']
-model_path = f'/home/denis/src/project/models/classification/multitask/beit_base_patch16_224_v1'
+
+model_path = f'/home/denis/src/project/models/classification/multitask/mobilenetv3_large_100_dummy'
 
 experiment = {
-    'api_key': 'F0EvCaEPI2bgMyLl6pLhZ2SoM',
+    'api_key_path': '/home/denis/nkbtech/nkb_classification/configs/comet_api_key.txt',
     'project_name': 'PetSearch_MultiTask',
     'workspace': 'dentikka',
     'auto_metric_logging': False,
     'name': split(model_path)[-1],
 }
 
+img_size = 224
+
 train_pipeline = A.Compose([
-    A.LongestMaxSize(224, always_apply=True),
-    A.PadIfNeeded(224, 224, always_apply=True),
+    A.LongestMaxSize(img_size, always_apply=True),
+    A.PadIfNeeded(img_size, img_size, always_apply=True,
+                  border_mode=cv2.BORDER_CONSTANT),
     A.MotionBlur(blur_limit=3,
                  allow_shifted=True,
                  p=0.5),
@@ -61,8 +65,9 @@ train_pipeline = A.Compose([
 ])
 
 val_pipeline = A.Compose([
-    A.LongestMaxSize(224, always_apply=True),
-    A.PadIfNeeded(224, 224, always_apply=True),
+    A.LongestMaxSize(img_size, always_apply=True),
+    A.PadIfNeeded(img_size, img_size, always_apply=True,
+                  border_mode=cv2.BORDER_CONSTANT),
     A.Normalize(
         mean=(0.485, 0.456, 0.406),
         std=(0.229, 0.224, 0.225),
@@ -71,7 +76,7 @@ val_pipeline = A.Compose([
 ])
 
 train_data = {
-    'type': 'AnnotatedMultilabelDataset',
+    'type': 'AnnotatedMultitargetDataset',
     'ann_file': '/home/denis/nkbtech/data/Dog_expo_Vladimir_02_07_2023_mp4_frames/multiclass_v4/multitask/annotation_high_res_video_split_v2.csv',
     'target_names': target_names,
     'fold': 'train',
@@ -80,10 +85,10 @@ train_data = {
     'batch_size': 64,
     'num_workers': 8,
     'size': 224,
-}
+}   
 
 val_data = {
-    'type': 'AnnotatedMultilabelDataset',
+    'type': 'AnnotatedMultitargetDataset',
     'ann_file': '/home/denis/nkbtech/data/Dog_expo_Vladimir_02_07_2023_mp4_frames/multiclass_v4/multitask/annotation_high_res_video_split_v2.csv',
     'target_names': target_names,
     'fold': 'val',
@@ -95,19 +100,33 @@ val_data = {
 }
 
 model = {
-    'model': 'beit_base_patch16_224',
+    'model': 'mobilenetv3_large_100',
     'pretrained': True,
-    'classifier dropout': 0.2
+    'backbone dropout': 0.0,
+    'classifier dropout': 0.0
 }
 
-optimizer = {
+backbone_optimizer = {
     'type': 'radam',
     'lr': 1e-5,
     'weight_decay': 0.2,
 }
-lr_policy = {
+
+backbone_lr_policy = {
     'type': 'multistep',
-    'steps': [5, 20],
+    'steps': [20, ],
+    'gamma': 0.1,
+}
+
+classifier_optimizer = {
+    'type': 'radam',
+    'lr': 1e-5,
+    'weight_decay': 0.2,
+}
+
+classifier_lr_policy = {
+    'type': 'multistep',
+    'steps': [20, ],
     'gamma': 0.1,
 }
 

@@ -11,6 +11,7 @@ from torchvision.datasets import ImageFolder
 
 import albumentations as A
 
+
 class Transforms:
     def __init__(
         self,
@@ -28,11 +29,21 @@ class Transforms:
         
         return self.transforms(image=np.array(img))['image']
 
+
 class InferDataset(Dataset):
-    def __init__(self, folder_path, transform=None):
+    def __init__(self, folder_path, annotations_file, target_names, transform=None):
         super(InferDataset, self,).__init__()
         self.ext = ['.jpg', '.jpeg', '.png']
         self.folder = Path(folder_path)
+        self.ann_table = pd.read_csv(annotations_file, index_col=0)
+        self.ann_table = self.ann_table[self.ann_table['fold'] == 'train']
+        self.target_names = [*sorted(target_names)]
+        self.classes = {target_name: np.sort(np.unique(self.ann_table[target_name].values)) 
+                        for target_name in self.target_names}
+        self.class_to_idx = {target_name: {k: i for i, k in enumerate(classes)} 
+                             for target_name, classes in self.classes.items()}
+        self.idx_to_class = {target_name: {idx: lb for lb, idx in class_to_idx.items()} 
+                             for target_name, class_to_idx in self.class_to_idx.items()}
         self.transform = transform # some infer transform
         self.imgs = [p for p in self.folder.iterdir() if p.suffix.lower() in self.ext]
 
@@ -40,7 +51,8 @@ class InferDataset(Dataset):
         return len(self.imgs)
 
     def __getitem__(self, idx):
-        img = Image.open(self.imgs[idx])
+        img = cv2.imread(self.imgs[idx])
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         path = str(self.imgs[idx])
         if self.transform is not None:
             return self.transform(img), path
@@ -101,7 +113,17 @@ class GroupsDataset(Dataset):
         return data_infos
     
 
-class AnnotatedMultilabelDataset(Dataset):
+class AnnotatedMultitargetDataset(Dataset):
+    """
+    AnnotatedMultitargetDataset provides a way to do multi-target classification.
+
+    Args:
+        annotations_file: path to the annotation file, which contains a pandas dataframe
+                          with image pahts and their target values
+        target_names: list of target_names to consider
+        fold: which fold in the dataset to work with (train, val, test, -1)
+        trnsform: which transform to apply to the image before returning it in the __getitem__ method
+    """
     def __init__(self, annotations_file, target_names, fold='test', transform=None):
         self.table = pd.read_csv(annotations_file, index_col=0)
         self.table = self.table[self.table['fold'] == fold]

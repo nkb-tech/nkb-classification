@@ -10,9 +10,6 @@ from tqdm import tqdm
 
 from nkb_classification.utils import get_inference_dataset
 
-import warnings
-warnings.filterwarnings("ignore")
-
 
 def inference(model, loader, 
               save_path, classes, device):
@@ -27,11 +24,13 @@ def inference(model, loader,
                 img_name = split(img_path)[-1]
                 shutil.copy(img_path, Path(save_path, cls_name, img_name))
 
+
 def read_py_config(path):
     path = Path(path)
     sys.path.append(str(path.parent))
     line = f'import {path.stem} as cfg'
     return line
+
 
 def main():
     parser = argparse.ArgumentParser(description='Inference arguments')
@@ -51,4 +50,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
