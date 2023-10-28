@@ -43,20 +43,9 @@ class MultilabelModel(nn.Module):
         for target_name in classes:
             self.classifiers[target_name] = nn.Sequential(nn.Dropout(cfg_model['classifier dropout']),
                                                           nn.Linear(self.emb_size, len(classes[target_name])))
-        
-        # if self.name.startswith('beit'):
-        #     def classifiers_forward(x):
-        #         return {
-        #             class_name: classifier(x)
-        #             for class_name, classifier in self.classifiers.items()
-        #         }
-        #     self.classifiers.forward = classifiers_forward
-        #     self.model.head = self.classifiers
-            
+
+
     def forward(self, x):
-        # if self.name.startswith('beit'):
-        #     return self.model(x)
-        # else:
         emb = self.emb_model(x)
         return {
             class_name: classifier(emb)
@@ -82,9 +71,6 @@ class MultilabelModel(nn.Module):
             self.emb_size = initial_model.patch_embed.num_patches * initial_model.head.in_features
             self.emb_model = nn.Sequential(*[*initial_model.children()][:-2],
                                             nn.Flatten())
-        # elif self.name.startswith('beit'):
-        #     emb_size = initial_model.head.in_features
-        #     self.model = initial_model
 
 
 class FocalLoss(nn.Module):
