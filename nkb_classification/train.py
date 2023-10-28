@@ -178,11 +178,9 @@ def train(model,
               criterion,
               target_names,
               device, cfg)
-        
-        # import ipdb; ipdb.set_trace()
 
         epoch_val_acc = None
-        if experiment is not None:
+        if experiment is not None:  # log metrics
             log_images(experiment, 
                     epoch, 
                     val_results['images'])

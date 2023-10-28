@@ -53,7 +53,7 @@ def main():
     exec(read_py_config(cfg_file), globals(), globals())
     data_loader = get_inference_dataset(cfg.inference_data, cfg.inference_pipeline)
     device = torch.device(cfg.device)
-    model = torch.load(cfg.model['checkpoint']).to(torch.device(device))
+    model = torch.load(cfg.model['checkpoint'], map_location='cpu').to(torch.device(device))
     save_path = Path(cfg.save_path)
     save_path.mkdir(exist_ok=True, parents=True)
     inference(model, data_loader, save_path, device)
