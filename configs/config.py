@@ -7,13 +7,13 @@ import cv2
 compile = False # Is not working correctly yet, so set to False
 log_gradients = True
 n_epochs = 30 + 1
-device = 'cuda:1'
+device = 'cuda:0'
 enable_mixed_presicion = True
 enable_gradient_scaler = True
 
 target_names = ['dog_size', 'dog_fur', 'dog_color', 'dog_ear_type', 'dog_muzzle_len', 'dog_leg_len']
 
-model_path = f'/home/denis/src/project/models/classification/multitask/mobilenetv3_large_100_dummy'
+model_path = f'/home/denis/src/project/models/classification/multitask/convnext_base_focal_v1'
 
 experiment = {
     'api_key_path': '/home/denis/nkbtech/nkb_classification/configs/comet_api_key.txt',
@@ -41,7 +41,7 @@ train_pipeline = A.Compose([
                         sat_shift_limit=10, 
                         val_shift_limit=50,
                         p=0.5),
-    A.RandomShadow(always_apply=True),
+    A.RandomShadow(p=0.5),
     A.RandomFog(fog_coef_lower=0.3, 
                 fog_coef_upper=0.5, 
                 alpha_coef=0.28,
@@ -82,8 +82,8 @@ train_data = {
     'fold': 'train',
     'weighted_sampling': False,
     'shuffle': True,
-    'batch_size': 64,
-    'num_workers': 8,
+    'batch_size': 128,
+    'num_workers': 10,
     'size': img_size,
 }   
 
@@ -100,36 +100,26 @@ val_data = {
 }
 
 model = {
-    'model': 'mobilenetv3_large_100',
+    'model': 'convnext_base',
     'pretrained': True,
-    'backbone dropout': 0.0,
-    'classifier dropout': 0.0
+    'backbone_dropout': 0.1,
+    'classifier_dropout': 0.1
 }
 
-backbone_optimizer = {
+optimizer = {
     'type': 'radam',
     'lr': 1e-5,
     'weight_decay': 0.2,
+    'backbone_lr': 1e-5,
+    'classifier_lr': 1e-4,
 }
 
-backbone_lr_policy = {
-    'type': 'multistep',
-    'steps': [20, ],
-    'gamma': 0.1,
-}
-
-classifier_optimizer = {
-    'type': 'radam',
-    'lr': 1e-5,
-    'weight_decay': 0.2,
-}
-
-classifier_lr_policy = {
+lr_policy = {
     'type': 'multistep',
     'steps': [20, ],
     'gamma': 0.1,
 }
 
 criterion = {
-    'type': 'CrossEntropyLoss'
+    'type': 'FocalLoss'
 }

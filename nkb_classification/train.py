@@ -1,10 +1,9 @@
 from pathlib import Path
-import numpy as np
 import sys
 
-import comet_ml
-
 from collections import defaultdict
+
+import comet_ml
 
 import torch
 from torch.cuda.amp import GradScaler
@@ -18,23 +17,28 @@ from nkb_classification.utils import get_experiment, get_model, \
 
 def train_epoch(model,
                 train_loader,
-                backbone_optimizer, classifier_optimizer, backbone_scheduler, classifier_scheduler,
+                optimizer,
+                scheduler,
                 scaler,
                 criterion,
                 target_names,
-                device, cfg):
+                device,
+                cfg):
     train_running_loss = defaultdict(list)
     train_confidences = defaultdict(list)
     train_predictions = defaultdict(list)
     train_ground_truth = defaultdict(list)
 
+    model.train()
+
     if cfg.log_gradients:
         metrics_grad_log = defaultdict(list)
+    
+    pbar = tqdm(train_loader, leave=False, desc='Training iters')
 
-    for img, target in tqdm(train_loader, leave=False, desc='Training iters'):
+    for img, target in pbar:
         img = img.to(device)
-        backbone_optimizer.zero_grad()
-        backbone_optimizer.zero_grad()
+        optimizer.zero_grad()
 
         with torch.autocast(device_type='cuda', dtype=torch.float16, enabled=cfg.enable_mixed_presicion):
             preds = model(img)
@@ -44,26 +48,28 @@ def train_epoch(model,
                 target_loss = criterion(preds[target_name], target[target_name].to(device))
                 train_running_loss[target_name].append(target_loss.item())
                 loss += target_loss
+        
+        pbar.set_postfix_str(', '.join(f'loss {key}: {value[-1]:.4f}' for key, value in train_running_loss.items()))
 
         train_running_loss['loss'].append(loss.item())
         
         scaler.scale(loss).backward()
-        scaler.step(backbone_optimizer)
-        scaler.step(classifier_optimizer)
+        scaler.step(optimizer)
         scaler.update()
 
         for target_name in target_names:
-            train_ground_truth[target_name].extend(list(target[target_name].cpu().numpy()))
+            train_ground_truth[target_name].extend(target[target_name].cpu().numpy().tolist())
 
             train_confidences[target_name].extend(
-                torch.nn.functional.softmax(preds[target_name], dim=-1, dtype=torch.float32)
+                preds[target_name]
+                .softmax(dim=-1, dtype=torch.float32)
                 .detach()
                 .cpu()
                 .numpy()
                 .tolist()
             )
             preds[target_name] = preds[target_name].argmax(dim=-1)
-            train_predictions[target_name].extend(list(preds[target_name].detach().cpu().numpy()))
+            train_predictions[target_name].extend(preds[target_name].detach().cpu().numpy().tolist())
 
         if cfg.log_gradients:
             total_grad = 0
@@ -76,10 +82,8 @@ def train_epoch(model,
 
             metrics_grad_log["Gradients/Total"].append(total_grad)
 
-    if backbone_scheduler is not None:
-        backbone_scheduler.step()
-    if classifier_scheduler is not None:
-        classifier_scheduler.step()
+    if scheduler is not None:
+        scheduler.step()
 
     results = {
         'running_loss': train_running_loss,
@@ -98,12 +102,15 @@ def val_epoch(model,
               val_loader,
               criterion,
               target_names,
-              device, cfg):
+              device,
+              cfg):
     
     val_confidences = defaultdict(list)
     val_predictions = defaultdict(list)
     val_ground_truth = defaultdict(list)
     val_running_loss = defaultdict(list)
+
+    model.eval()
 
     batch_to_log = None
     for img, target in tqdm(val_loader, leave=False, desc='Evaluating'):
@@ -119,17 +126,17 @@ def val_epoch(model,
         val_running_loss['loss'].append(loss.item())
         
         for target_name in target_names:
-            val_ground_truth[target_name].extend(list(target[target_name].cpu().numpy()))
+            val_ground_truth[target_name].extend(target[target_name].cpu().numpy().tolist())
 
             val_confidences[target_name].extend(
-                torch.nn.functional.softmax(preds[target_name], dim=-1, dtype=torch.float32)
-                .detach()
+                preds[target_name]
+                .softmax(dim=-1, dtype=torch.float32)
                 .cpu()
                 .numpy()
                 .tolist()
             )
             preds[target_name] = preds[target_name].argmax(dim=-1)
-            val_predictions[target_name].extend(list(preds[target_name].detach().cpu().numpy()))
+            val_predictions[target_name].extend(preds[target_name].detach().cpu().numpy().tolist())
 
         if batch_to_log is None:
             batch_to_log = img.to('cpu')
@@ -147,10 +154,12 @@ def val_epoch(model,
 
 def train(model,
           train_loader, val_loader,
-          backbone_optimizer, classifier_optimizer, backbone_scheduler, classifier_scheduler,
+          optimizer,
+          scheduler,
           criterion,
           experiment, 
-          device, cfg):
+          device,
+          cfg):
     model_path = Path(cfg.model_path)
     model_path.mkdir(exist_ok=True, parents=True)
     n_epochs = cfg.n_epochs
@@ -163,21 +172,24 @@ def train(model,
 
     for epoch in tqdm(range(n_epochs), desc='Training epochs'):
 
-        model.train()
-        train_results = train_epoch(model,
-                train_loader,
-                backbone_optimizer, classifier_optimizer, backbone_scheduler, classifier_scheduler,
-                scaler,
-                criterion,
-                target_names,
-                device, cfg)
+        train_results = train_epoch(
+            model,
+            train_loader,
+            optimizer,
+            scheduler,
+            scaler,
+            criterion,
+            target_names,
+            device,
+            cfg)
 
-        model.eval()
-        val_results = val_epoch(model,
-              val_loader,
-              criterion,
-              target_names,
-              device, cfg)
+        val_results = val_epoch(
+            model,
+            val_loader,
+            criterion,
+            target_names,
+            device,
+            cfg)
 
         epoch_val_acc = None
         if experiment is not None:  # log metrics
@@ -243,19 +255,25 @@ def main():
     classes = train_loader.dataset.classes
     device = torch.device(cfg.device)
     model = get_model(cfg.model, classes, device, compile=cfg.compile)
-    backbone_optimizer = get_optimizer([*model.parameters()][:-2*len(model.classifiers)], cfg.backbone_optimizer)
-    classifier_optimizer = get_optimizer([*model.parameters()][-2*len(model.classifiers):], cfg.classifier_optimizer)
-    backbone_scheduler = get_scheduler(backbone_optimizer, cfg.backbone_lr_policy)
-    classifier_scheduler = get_scheduler(classifier_optimizer, cfg.classifier_lr_policy)
+    optimizer = get_optimizer(
+        parameters=[
+            {"params": model.emb_model.parameters(), "lr": cfg.optimizer['backbone_lr']},
+            {"params": model.classifiers.parameters(), "lr": cfg.optimizer['classifier_lr']},
+        ],
+        cfg=cfg.optimizer,
+    )
+    scheduler = get_scheduler(optimizer, cfg.lr_policy)
     criterion = get_loss(cfg.criterion, cfg.device)
     experiment = get_experiment(cfg.experiment)
     experiment.log_code(cfg_file)
     train(model,
-          train_loader, val_loader,
-          backbone_optimizer, classifier_optimizer, backbone_scheduler, classifier_scheduler,
+          train_loader,
+          val_loader,
+          optimizer, scheduler,
           criterion,
           experiment, 
-          device, cfg)
+          device,
+          cfg)
 
 
 if __name__ == '__main__':

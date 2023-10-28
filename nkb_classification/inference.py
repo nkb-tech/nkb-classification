@@ -1,5 +1,6 @@
+from typing import Union
+
 from pathlib import Path
-from os.path import split
 import sys
 
 import numpy as np
@@ -13,28 +14,40 @@ from tqdm import tqdm
 from nkb_classification.utils import get_inference_dataset
 
 
-def inference(model, loader, 
-              save_path, device):
+@torch.no_grad()
+def inference(
+    model: torch.nn.Module,
+    loader: torch.utils.data.DataLoader, 
+    save_path: str,
+    device: Union[torch.device, str],
+) -> None:
     columns = loader.dataset.target_names.copy()
     columns.append('path')
     inference_annotations = pd.DataFrame(columns=columns)
+
     model.eval()
-    softmax = torch.nn.Softmax(dim=-1)
-    with torch.no_grad():
-        for imgs, img_paths in tqdm(loader, leave=False):
-            imgs = imgs.float().to(device)
-            preds = model(imgs)
-            batch_annotations = []
-            for target_name in loader.dataset.target_names:
-                pred = preds[target_name]
-                pred = softmax(pred).argmax(dim=1).cpu().numpy().tolist()
-                pred = [loader.dataset.idx_to_class[target_name][idx] for idx in pred]
-                batch_annotations.append(pred)
-            batch_annotations.append(list(img_paths))
-            batch_annotations = np.vstack(batch_annotations).T
-            inference_annotations = pd.concat([inference_annotations,
-                                            pd.DataFrame(batch_annotations,
-                                                            columns=columns)])
+
+    for imgs, img_paths in tqdm(loader, leave=False, desc='Inference'):
+        imgs = imgs.float().to(device)
+        preds = model(imgs)
+        batch_annotations = []
+        for target_name in loader.dataset.target_names:
+            pred = preds[target_name]
+            pred = (
+                pred
+                .softmax(dim=-1)
+                .argmax(dim=1)
+                .cpu()
+                .numpy()
+                .tolist()
+            )
+            pred = [loader.dataset.idx_to_class[target_name][idx] for idx in pred]
+            batch_annotations.append(pred)
+        batch_annotations.append(list(img_paths))
+        batch_annotations = np.vstack(batch_annotations).T
+        inference_annotations = pd.concat([inference_annotations,
+                                        pd.DataFrame(batch_annotations,
+                                                        columns=columns)])
     inference_annotations.to_csv(Path(save_path, 'inference_annotations.csv'), index=False)
 
 
