@@ -129,4 +129,4 @@ dmypy.json
 .pyre/
 
 # Comet-ML API key
-.configs/comet_api_key.txt
+configs/comet_api_key.txt
