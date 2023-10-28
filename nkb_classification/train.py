@@ -13,7 +13,7 @@ import argparse
 from tqdm import tqdm
 
 from nkb_classification.utils import get_experiment, get_model, \
-    get_optimizers, get_scheduler, get_loss, get_dataset, \
+    get_optimizer, get_scheduler, get_loss, get_dataset, \
     log_images, compute_metrics, log_metrics, log_confusion_matrices, log_grads
 
 def train_epoch(model,
@@ -243,7 +243,8 @@ def main():
     classes = train_loader.dataset.classes
     device = torch.device(cfg.device)
     model = get_model(cfg.model, classes, device, compile=cfg.compile)
-    backbone_optimizer, classifier_optimizer = get_optimizers(model, cfg.backbone_optimizer, cfg.classifier_optimizer)
+    backbone_optimizer = get_optimizer([*model.parameters()][:-2*len(model.classifiers)], cfg.backbone_optimizer)
+    classifier_optimizer = get_optimizer([*model.parameters()][-2*len(model.classifiers):], cfg.classifier_optimizer)
     backbone_scheduler = get_scheduler(backbone_optimizer, cfg.backbone_lr_policy)
     classifier_scheduler = get_scheduler(classifier_optimizer, cfg.classifier_lr_policy)
     criterion = get_loss(cfg.criterion, cfg.device)

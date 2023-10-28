@@ -44,7 +44,6 @@ class MultilabelModel(nn.Module):
             self.classifiers[target_name] = nn.Sequential(nn.Dropout(cfg_model['classifier dropout']),
                                                           nn.Linear(self.emb_size, len(classes[target_name])))
 
-
     def forward(self, x):
         emb = self.emb_model(x)
         return {
@@ -77,7 +76,6 @@ class FocalLoss(nn.Module):
     '''
     inspired by https://github.com/AdeelH/pytorch-multi-class-focal-loss/tree/master
     '''
-
     def __init__(self,
                  alpha=None,
                  gamma=0.,):
@@ -95,19 +93,13 @@ class FocalLoss(nn.Module):
             c = x.shape[1]
             x = x.permute(0, *range(2, x.ndim), 1).reshape(-1, c)
             y = y.view(-1)
-
         if len(y) == 0:
             return torch.tensor(0.)
-
         ce = self.CrossEntropyLoss(x, y)
         all_rows = torch.arange(len(x))
-
         pt = x[all_rows, y]
-
         focal_term = (1 - pt)**self.gamma
-
         loss = (focal_term * ce).mean()
-
         return loss
     
 
@@ -123,28 +115,18 @@ def get_experiment(cfg_exp):
     return exp
 
 
-def get_optimizers(model, cfg_back_opt, cfg_class_opt):
-    if cfg_back_opt['type'] == 'adam':
-        back_opt = Adam([*model.parameters()][:-2*len(model.classifiers)], lr=cfg_back_opt['lr'], weight_decay=cfg_back_opt.get('weight_decay', 0.0))
-    elif cfg_back_opt['type'] == 'radam':
-        back_opt = RAdam([*model.parameters()][:-2*len(model.classifiers)], lr=cfg_back_opt['lr'], weight_decay=cfg_back_opt.get('weight_decay', 0.0), decoupled_weight_decay=True)
-    elif cfg_back_opt['type'] == 'sparse_adam':
-        back_opt = SparseAdam([*model.parameters()][:-2*len(model.classifiers)], lr=cfg_back_opt['lr'], weight_decay=cfg_back_opt.get('weight_decay', 0.0))
-    elif cfg_back_opt['type'] == 'sgd':
-        back_opt = SGD([*model.parameters()][:-2*len(model.classifiers)], lr=cfg_back_opt['lr'], weight_decay=cfg_back_opt.get('weight_decay', 0.0))
+def get_optimizer(parameters, cfg):
+    if cfg['type'] == 'adam':
+        opt = Adam(parameters, lr=cfg['lr'], weight_decay=cfg.get('weight_decay', 0.0))
+    elif cfg['type'] == 'radam':
+        opt = RAdam(parameters, lr=cfg['lr'], weight_decay=cfg.get('weight_decay', 0.0), decoupled_weight_decay=True)
+    elif cfg['type'] == 'sparse_adam':
+        opt = SparseAdam(parameters, lr=cfg['lr'], weight_decay=cfg.get('weight_decay', 0.0))
+    elif cfg['type'] == 'sgd':
+        opt = SGD(parameters, lr=cfg['lr'], weight_decay=cfg.get('weight_decay', 0.0))
     else:
-        raise NotImplementedError(f'Unknown optimizer in config: {cfg_back_opt["type"]}')
-    if cfg_class_opt['type'] == 'adam':
-        class_opt = Adam([*model.parameters()][-2*len(model.classifiers):], lr=cfg_class_opt['lr'], weight_decay=cfg_class_opt.get('weight_decay', 0.0))
-    elif cfg_class_opt['type'] == 'radam':
-        class_opt = RAdam([*model.parameters()][-2*len(model.classifiers):], lr=cfg_class_opt['lr'], weight_decay=cfg_class_opt.get('weight_decay', 0.0), decoupled_weight_decay=True)
-    elif cfg_class_opt['type'] == 'sparse_adam':
-        class_opt = SparseAdam([*model.parameters()][-2*len(model.classifiers):], lr=cfg_class_opt['lr'], weight_decay=cfg_class_opt.get('weight_decay', 0.0))
-    elif cfg_class_opt['type'] == 'sgd':
-        class_opt = SGD([*model.parameters()][-2*len(model.classifiers):], lr=cfg_class_opt['lr'], weight_decay=cfg_class_opt.get('weight_decay', 0.0))
-    else:
-        raise NotImplementedError(f'Unknown optimizer in config: {cfg_class_opt["type"]}')
-    return back_opt, class_opt
+        raise NotImplementedError(f'Unknown optimizer in config: {cfg["type"]}')
+    return opt
 
 
 def get_scheduler(opt, lr_policy):
