@@ -19,7 +19,7 @@ def inference(model, loader,
     columns.append('path')
     inference_annotations = pd.DataFrame(columns=columns)
     model.eval()
-    Softmax = torch.nn.Softmax(dim=-1)
+    softmax = torch.nn.Softmax(dim=-1)
     with torch.no_grad():
         for imgs, img_paths in tqdm(loader, leave=False):
             imgs = imgs.float().to(device)
@@ -27,7 +27,7 @@ def inference(model, loader,
             batch_annotations = []
             for target_name in loader.dataset.target_names:
                 pred = preds[target_name]
-                pred = list(Softmax(pred).argmax(dim=1).detach().cpu().numpy())
+                pred = softmax(pred).argmax(dim=1).cpu().numpy().tolist()
                 pred = [loader.dataset.idx_to_class[target_name][idx] for idx in pred]
                 batch_annotations.append(pred)
             batch_annotations.append(list(img_paths))
