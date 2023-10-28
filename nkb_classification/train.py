@@ -1,108 +1,248 @@
 from pathlib import Path
-import numpy as np
-import yaml
 import sys
-from sklearn.metrics import balanced_accuracy_score
+
+from collections import defaultdict
+
+import comet_ml
 
 import torch
-from torchvision import transforms
-from torchvision.utils import make_grid
+from torch.cuda.amp import GradScaler
 
 import argparse
 from tqdm import tqdm
 
 from nkb_classification.utils import get_experiment, get_model, \
-    get_optimizer, get_scheduler, get_dataset
+    get_optimizer, get_scheduler, get_loss, get_dataset, \
+    log_images, compute_metrics, log_metrics, log_confusion_matrices, log_grads
 
-import warnings
-warnings.filterwarnings("ignore")
+def train_epoch(model,
+                train_loader,
+                optimizer,
+                scheduler,
+                scaler,
+                criterion,
+                target_names,
+                device,
+                cfg):
+    train_running_loss = defaultdict(list)
+    train_confidences = defaultdict(list)
+    train_predictions = defaultdict(list)
+    train_ground_truth = defaultdict(list)
+
+    model.train()
+
+    if cfg.log_gradients:
+        metrics_grad_log = defaultdict(list)
+    
+    pbar = tqdm(train_loader, leave=False, desc='Training iters')
+
+    for img, target in pbar:
+        img = img.to(device)
+        optimizer.zero_grad()
+
+        with torch.autocast(device_type='cuda', dtype=torch.float16, enabled=cfg.enable_mixed_presicion):
+            preds = model(img)
+            loss = 0
+
+            for target_name in target_names:
+                target_loss = criterion(preds[target_name], target[target_name].to(device))
+                train_running_loss[target_name].append(target_loss.item())
+                loss += target_loss
+        
+        pbar.set_postfix_str(', '.join(f'loss {key}: {value[-1]:.4f}' for key, value in train_running_loss.items()))
+
+        train_running_loss['loss'].append(loss.item())
+        
+        scaler.scale(loss).backward()
+        scaler.step(optimizer)
+        scaler.update()
+
+        for target_name in target_names:
+            train_ground_truth[target_name].extend(target[target_name].cpu().numpy().tolist())
+
+            train_confidences[target_name].extend(
+                preds[target_name]
+                .softmax(dim=-1, dtype=torch.float32)
+                .detach()
+                .cpu()
+                .numpy()
+                .tolist()
+            )
+            preds[target_name] = preds[target_name].argmax(dim=-1)
+            train_predictions[target_name].extend(preds[target_name].detach().cpu().numpy().tolist())
+
+        if cfg.log_gradients:
+            total_grad = 0
+            for tag, value in model.named_parameters():
+                assert tag != "Total"
+                if value.grad is not None:
+                    grad = value.grad.norm()
+                    metrics_grad_log[f"Gradients/{tag}"].append(grad)
+                    total_grad += grad
+
+            metrics_grad_log["Gradients/Total"].append(total_grad)
+
+    if scheduler is not None:
+        scheduler.step()
+
+    results = {
+        'running_loss': train_running_loss,
+        'confidences': train_confidences,
+        'predictions': train_predictions,
+        'ground_truth': train_ground_truth
+    }
+
+    if cfg.log_gradients:
+        results['metrics_grad_log'] = metrics_grad_log
+
+    return results
 
 
-def train(model, 
-          train_loader, 
-          val_loader, 
-          optimizer, 
-          scheduler, 
-          criterion, 
-          experiment,
+def val_epoch(model,
+              val_loader,
+              criterion,
+              target_names,
+              device,
+              cfg):
+    
+    val_confidences = defaultdict(list)
+    val_predictions = defaultdict(list)
+    val_ground_truth = defaultdict(list)
+    val_running_loss = defaultdict(list)
+
+    model.eval()
+
+    batch_to_log = None
+    for img, target in tqdm(val_loader, leave=False, desc='Evaluating'):
+        img = img.to(device)
+        with torch.no_grad(), torch.autocast(device_type='cuda', dtype=torch.float16, enabled=cfg.enable_mixed_presicion):
+            preds = model(img)
+            loss = 0
+            for target_name in target_names:
+                target_loss = criterion(preds[target_name], target[target_name].to(device))
+                val_running_loss[target_name].append(target_loss.item())
+                loss += target_loss
+
+        val_running_loss['loss'].append(loss.item())
+        
+        for target_name in target_names:
+            val_ground_truth[target_name].extend(target[target_name].cpu().numpy().tolist())
+
+            val_confidences[target_name].extend(
+                preds[target_name]
+                .softmax(dim=-1, dtype=torch.float32)
+                .cpu()
+                .numpy()
+                .tolist()
+            )
+            preds[target_name] = preds[target_name].argmax(dim=-1)
+            val_predictions[target_name].extend(preds[target_name].detach().cpu().numpy().tolist())
+
+        if batch_to_log is None:
+            batch_to_log = img.to('cpu')
+
+    results = {
+        'running_loss': val_running_loss,
+        'confidences': val_confidences,
+        'predictions': val_predictions,
+        'ground_truth': val_ground_truth,
+        'images': batch_to_log
+    }
+
+    return results
+
+
+def train(model,
+          train_loader, val_loader,
+          optimizer,
+          scheduler,
+          criterion,
+          experiment, 
           device,
           cfg):
     model_path = Path(cfg.model_path)
     model_path.mkdir(exist_ok=True, parents=True)
     n_epochs = cfg.n_epochs
-    epoch_train_loss, epoch_val_loss = [], []
     best_val_acc = 0
-    inv_transform = transforms.Compose([
-        transforms.Normalize(mean = [ 0., 0., 0. ],
-                             std = [ 1/0.229, 1/0.224, 1/0.225 ]),
-        transforms.Normalize(mean = [ -0.485, -0.456, -0.406 ],
-                             std = [ 1., 1., 1. ]),
-        transforms.ToPILImage(),
-    ])
-    class_to_idx = val_loader.dataset.class_to_idx
-    label_names = [k for k, v in sorted(class_to_idx.items(), key=lambda item: item[1])]
-    for epoch in tqdm(range(n_epochs)):
-        model.train()
-        train_running_loss = []
-        val_running_loss = []
-        train_predictions = []
-        train_ground_truth = []
-        val_predictions = []
-        val_ground_truth = []
-        for img, target in tqdm(train_loader, leave=False):
-            train_ground_truth.extend(list(target.numpy()))
-            img, target = img.float().to(device), target.long().to(device)
-            optimizer.zero_grad()
-            preds = model(img)
-            loss = criterion(preds, target)
-            loss.backward()
-            optimizer.step()
+    class_to_idx = train_loader.dataset.class_to_idx
+    target_names = [*sorted(class_to_idx)]
+    label_names = {target_name: [*class_to_idx[target_name].keys()] for target_name in target_names}
 
-            train_running_loss.append(loss.item())
-            preds = preds.argmax(dim=1)
-            train_predictions.extend(list(preds.detach().cpu().numpy()))
-        if scheduler is not None:
-            scheduler.step()
-        model.eval()
-        logged = False
-        for img, target in tqdm(val_loader, leave=False):
-            val_ground_truth.extend(list(target.numpy()))
-            img, target = img.float().to(device), target.long().to(device)
-            preds = model(img)
-            loss = criterion(preds, target)
+    scaler = GradScaler(enabled=cfg.enable_gradient_scaler)
+
+    for epoch in tqdm(range(n_epochs), desc='Training epochs'):
+
+        train_results = train_epoch(
+            model,
+            train_loader,
+            optimizer,
+            scheduler,
+            scaler,
+            criterion,
+            target_names,
+            device,
+            cfg)
+
+        val_results = val_epoch(
+            model,
+            val_loader,
+            criterion,
+            target_names,
+            device,
+            cfg)
+
+        epoch_val_acc = None
+        if experiment is not None:  # log metrics
+            log_images(experiment, 
+                    epoch, 
+                    val_results['images'])
+
+            train_metrics = compute_metrics(train_results,
+                                            target_names)
+
+            log_metrics(experiment, 
+                    target_names,
+                    label_names,
+                    epoch,
+                    train_metrics,
+                    'Train')
             
-            val_running_loss.append(loss.item())
-            preds = preds.argmax(dim=1)
-            val_predictions.extend(list(preds.detach().cpu().numpy()))
-            if experiment is not None and not logged:
-                batch_img = img.to('cpu')
-                grid = inv_transform(make_grid(batch_img, nrow=8, padding=2))
-                experiment.log_image(grid, name=f'Epoch {epoch}', step=epoch)
-                logged = True
+            val_metrics = compute_metrics(val_results,
+                                          target_names)
+            epoch_val_acc = val_metrics['epoch_acc']
 
-        train_acc = balanced_accuracy_score(train_ground_truth, train_predictions)
-        val_acc = balanced_accuracy_score(val_ground_truth, val_predictions)
-        print(f'Epoch {epoch} train balanced accuracy {train_acc}')
-        print(f'Epoch {epoch} validation balanced accuracy {val_acc}')
-        epoch_train_loss = np.mean(train_running_loss)
-        epoch_val_loss = np.mean(val_running_loss)
-        if experiment is not None:
-            experiment.log_metric(f'Average epoch train loss', epoch_train_loss, epoch=epoch, step=epoch)
-            experiment.log_metric(f'Average epoch val loss', epoch_val_loss, epoch=epoch, step=epoch)
-            experiment.log_metric(f'Train balanced accuracy', train_acc, epoch=epoch, step=epoch)
-            experiment.log_metric(f'Validation balanced accuracy', val_acc, epoch=epoch, step=epoch)
-            experiment.log_confusion_matrix(val_ground_truth, val_predictions, labels=label_names, epoch=epoch)
-        m = torch.jit.script(model)    
-        if val_acc > best_val_acc:
-            best_val_acc = val_acc
-            torch.jit.save(m, Path(model_path, 'best.pth'))
-        torch.jit.save(m, Path(model_path, 'last.pth'))
+            log_metrics(experiment, 
+                    target_names,
+                    label_names,
+                    epoch,
+                    val_metrics,
+                    'Validation')
+            
+            log_confusion_matrices(experiment, 
+                    target_names,
+                    label_names,
+                    epoch,
+                    val_results,
+                    'Validation')
+            
+            if cfg.log_gradients:
+                log_grads(experiment, 
+                    epoch, 
+                    train_results['metrics_grad_log'])
+
+        if epoch_val_acc is not None:
+            if epoch_val_acc > best_val_acc:
+                best_val_acc = epoch_val_acc
+                torch.save(model, Path(model_path, 'best.pth'))
+        torch.save(model, Path(model_path, 'last.pth'))
+
         
 def read_py_config(path):
     path = Path(path)
     sys.path.append(str(path.parent))
     line = f'import {path.stem} as cfg'
     return line
+
 
 def main():
     parser = argparse.ArgumentParser(description='Train arguments')
@@ -112,16 +252,29 @@ def main():
     exec(read_py_config(cfg_file), globals(), globals())
     train_loader = get_dataset(cfg.train_data, cfg.train_pipeline)
     val_loader = get_dataset(cfg.val_data, cfg.val_pipeline)
-    n_classes = len(train_loader.dataset.classes)
+    classes = train_loader.dataset.classes
     device = torch.device(cfg.device)
-    model = get_model(cfg.model, n_classes, device)
-    optimizer = get_optimizer(model, cfg.optimizer)
+    model = get_model(cfg.model, classes, device, compile=cfg.compile)
+    optimizer = get_optimizer(
+        parameters=[
+            {"params": model.emb_model.parameters(), "lr": cfg.optimizer['backbone_lr']},
+            {"params": model.classifiers.parameters(), "lr": cfg.optimizer['classifier_lr']},
+        ],
+        cfg=cfg.optimizer,
+    )
     scheduler = get_scheduler(optimizer, cfg.lr_policy)
+    criterion = get_loss(cfg.criterion, cfg.device)
     experiment = get_experiment(cfg.experiment)
-    train(model, train_loader, val_loader,
-          optimizer, scheduler, cfg.criterion, experiment, 
-          device, cfg)
+    experiment.log_code(cfg_file)
+    train(model,
+          train_loader,
+          val_loader,
+          optimizer, scheduler,
+          criterion,
+          experiment, 
+          device,
+          cfg)
+
 
 if __name__ == '__main__':
     main()
-
