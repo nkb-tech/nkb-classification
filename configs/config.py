@@ -1,4 +1,3 @@
-import torch.nn as nn
 import albumentations as A
 from albumentations.pytorch import ToTensorV2
 from os.path import split
@@ -94,7 +93,7 @@ val_data = {
     'fold': 'val',
     'weighted_sampling': False,
     'shuffle': True,
-    'batch_size': 64,
+    'batch_size': 32,
     'num_workers': 8,
     'size': img_size,
 }
@@ -107,7 +106,7 @@ model = {
 }
 
 optimizer = {
-    'type': 'radam',
+    'type': 'nadam',
     'lr': 1e-5,
     'weight_decay': 0.2,
     'backbone_lr': 1e-5,

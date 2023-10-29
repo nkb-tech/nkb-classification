@@ -1,5 +1,4 @@
 from pathlib import Path
-import sys
 
 from collections import defaultdict
 
@@ -11,9 +10,23 @@ from torch.cuda.amp import GradScaler
 import argparse
 from tqdm import tqdm
 
-from nkb_classification.utils import get_experiment, get_model, \
-    get_optimizer, get_scheduler, get_loss, get_dataset, \
-    log_images, compute_metrics, log_metrics, log_confusion_matrices, log_grads
+from nkb_classification.dataset import get_dataset
+from nkb_classification.model import get_model
+from nkb_classification.losses import get_loss
+from nkb_classification.metrics import (
+    compute_metrics,
+    log_metrics,
+    log_confusion_matrices,
+)
+
+from nkb_classification.utils import (
+    get_experiment,
+    get_optimizer,
+    get_scheduler,
+    log_images,
+    log_grads,
+    read_py_config,
+)
 
 def train_epoch(model,
                 train_loader,
@@ -34,7 +47,7 @@ def train_epoch(model,
     if cfg.log_gradients:
         metrics_grad_log = defaultdict(list)
     
-    pbar = tqdm(train_loader, leave=False, desc='Training iters')
+    pbar = tqdm(train_loader, leave=False, desc='Training')
 
     for img, target in pbar:
         img = img.to(device)
@@ -49,17 +62,25 @@ def train_epoch(model,
                 train_running_loss[target_name].append(target_loss.item())
                 loss += target_loss
         
-        pbar.set_postfix_str(', '.join(f'loss {key}: {value[-1]:.4f}' for key, value in train_running_loss.items()))
+        # log full losses
+        # pbar.set_postfix_str(', '.join(f'loss {key}: {value[-1]:.4f}' for key, value in train_running_loss.items()))
+        loss_item = loss.item()
 
-        train_running_loss['loss'].append(loss.item())
+        pbar.set_postfix_str(f'Loss: {loss_item:.4f}')
+
+        train_running_loss['loss'].append(loss_item)
         
         scaler.scale(loss).backward()
         scaler.step(optimizer)
         scaler.update()
 
         for target_name in target_names:
-            train_ground_truth[target_name].extend(target[target_name].cpu().numpy().tolist())
-
+            train_ground_truth[target_name].extend(
+                target[target_name]
+                .cpu()
+                .numpy()
+                .tolist()
+            )
             train_confidences[target_name].extend(
                 preds[target_name]
                 .softmax(dim=-1, dtype=torch.float32)
@@ -68,8 +89,14 @@ def train_epoch(model,
                 .numpy()
                 .tolist()
             )
-            preds[target_name] = preds[target_name].argmax(dim=-1)
-            train_predictions[target_name].extend(preds[target_name].detach().cpu().numpy().tolist())
+            train_predictions[target_name].extend(
+                preds[target_name]
+                .argmax(dim=-1)
+                .detach()
+                .cpu()
+                .numpy()
+                .tolist()
+            )
 
         if cfg.log_gradients:
             total_grad = 0
@@ -97,7 +124,7 @@ def train_epoch(model,
 
     return results
 
-
+@torch.no_grad()
 def val_epoch(model,
               val_loader,
               criterion,
@@ -115,19 +142,23 @@ def val_epoch(model,
     batch_to_log = None
     for img, target in tqdm(val_loader, leave=False, desc='Evaluating'):
         img = img.to(device)
-        with torch.no_grad(), torch.autocast(device_type='cuda', dtype=torch.float16, enabled=cfg.enable_mixed_presicion):
+        with torch.autocast(device_type='cuda', dtype=torch.float16, enabled=cfg.enable_mixed_presicion):
             preds = model(img)
             loss = 0
             for target_name in target_names:
-                target_loss = criterion(preds[target_name], target[target_name].to(device))
-                val_running_loss[target_name].append(target_loss.item())
+                target_loss = criterion(preds[target_name], target[target_name].to(device)).item()
+                val_running_loss[target_name].append(target_loss)
                 loss += target_loss
 
-        val_running_loss['loss'].append(loss.item())
+        val_running_loss['loss'].append(loss)
         
         for target_name in target_names:
-            val_ground_truth[target_name].extend(target[target_name].cpu().numpy().tolist())
-
+            val_ground_truth[target_name].extend(
+                target[target_name]
+                .cpu()
+                .numpy()
+                .tolist()
+            )
             val_confidences[target_name].extend(
                 preds[target_name]
                 .softmax(dim=-1, dtype=torch.float32)
@@ -135,8 +166,13 @@ def val_epoch(model,
                 .numpy()
                 .tolist()
             )
-            preds[target_name] = preds[target_name].argmax(dim=-1)
-            val_predictions[target_name].extend(preds[target_name].detach().cpu().numpy().tolist())
+            val_predictions[target_name].extend(
+                preds[target_name]
+                .argmax(dim=-1)
+                .cpu()
+                .numpy()
+                .tolist()
+            )
 
         if batch_to_log is None:
             batch_to_log = img.to('cpu')
@@ -206,7 +242,7 @@ def train(model,
                     epoch,
                     train_metrics,
                     'Train')
-            
+
             val_metrics = compute_metrics(val_results,
                                           target_names)
             epoch_val_acc = val_metrics['epoch_acc']
@@ -233,15 +269,8 @@ def train(model,
         if epoch_val_acc is not None:
             if epoch_val_acc > best_val_acc:
                 best_val_acc = epoch_val_acc
-                torch.save(model, Path(model_path, 'best.pth'))
-        torch.save(model, Path(model_path, 'last.pth'))
-
-        
-def read_py_config(path):
-    path = Path(path)
-    sys.path.append(str(path.parent))
-    line = f'import {path.stem} as cfg'
-    return line
+                torch.save(model.state_dict(), Path(model_path, 'best.pth'))
+        torch.save(model.state_dict(), Path(model_path, 'last.pth'))
 
 
 def main():

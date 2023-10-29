@@ -6,6 +6,9 @@ from PIL import Image
 import pickle as pkl
 import torch
 from torch.utils.data import Dataset
+from torchvision.datasets import ImageFolder
+from torch.utils.data import DataLoader
+from torchsampler import ImbalancedDatasetSampler
 
 import albumentations as A
 
@@ -152,3 +155,38 @@ class AnnotatedMultitargetDataset(Dataset):
     
     def get_labels(self):
         return self.table[self.target_names].values
+    
+
+def get_dataset(data, pipeline):
+    transform = Transforms(pipeline)
+    if data['type'] == 'GroupsDataset':
+        dataset = GroupsDataset(data['root'],
+                                data['ann_file'], 
+                                data['group_dict'],
+                                transform=transform)
+    elif data['type'] == 'AnnotatedMultitargetDataset':
+        dataset = AnnotatedMultitargetDataset(data['ann_file'],
+                                             data['target_names'],
+                                             data['fold'],
+                                             transform=transform)
+    else:
+        dataset = ImageFolder(data['root'], transform=transform)
+    if data.get('weighted_sampling', False):
+        loader = DataLoader(dataset, batch_size=data['batch_size'],  
+                            sampler=ImbalancedDatasetSampler(dataset),
+                            num_workers=data['num_workers'], pin_memory=True)
+    else:
+        loader = DataLoader(dataset, batch_size=data['batch_size'], 
+                            shuffle=data['shuffle'], num_workers=data['num_workers'], pin_memory=True)
+    return loader
+
+
+def get_inference_dataset(data, pipeline):
+    transform = Transforms(pipeline)
+    dataset = InferDataset(data['root'], 
+                           data['train_annotations_file'],
+                           data['target_names'],
+                           transform=transform)
+    loader = DataLoader(dataset, batch_size=data['batch_size'], 
+                        num_workers=data['num_workers'], pin_memory=True)
+    return loader
