@@ -3,8 +3,21 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# NN Models
+*.torchscript
+*.onnx
+*.pth
+*.engine
+
 # C extensions
 *.so
+
+# MacOS
+*.DS_Store
+
+# Jupyter Notebook
+.ipynb_checkpoints
+*/.ipynb_checkpoints/*
 
 # Distribution / packaging
 .Python
@@ -73,9 +86,6 @@ docs/_build/
 
 # PyBuilder
 target/
-
-# Jupyter Notebook
-.ipynb_checkpoints
 
 # IPython
 profile_default/

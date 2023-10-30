@@ -1,8 +1,9 @@
-import torch.nn as nn
 import albumentations as A
 from albumentations.pytorch import ToTensorV2
 from os.path import split
 import cv2
+
+show_full_current_loss_in_terminal = False
 
 compile = False # Is not working correctly yet, so set to False
 log_gradients = True
@@ -94,7 +95,7 @@ val_data = {
     'fold': 'val',
     'weighted_sampling': False,
     'shuffle': True,
-    'batch_size': 64,
+    'batch_size': 32,
     'num_workers': 8,
     'size': img_size,
 }
@@ -107,7 +108,7 @@ model = {
 }
 
 optimizer = {
-    'type': 'radam',
+    'type': 'nadam',
     'lr': 1e-5,
     'weight_decay': 0.2,
     'backbone_lr': 1e-5,

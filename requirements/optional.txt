@@ -1,0 +1,7 @@
+onnx
+onnxsim
+pre-commit
+virtualenv
+ipdb
+monkeytype
+onnxruntime
