@@ -28,6 +28,13 @@ cd nkb_classification
 python3 -m train -cfg `cfg_path`
 ```
 
+## Run inference
+
+```bash
+cd nkb_classification
+python3 -m inference -cfg `inference_cfg_path`
+```
+
 ## Run onnx export
 
 To enable export models to onnx or torchscript, run first:
