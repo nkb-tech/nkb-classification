@@ -61,11 +61,11 @@ def train_epoch(model,
                 target_loss = criterion(preds[target_name], target[target_name].to(device))
                 train_running_loss[target_name].append(target_loss.item())
                 loss += target_loss
-        
-        # log full losses
-        # pbar.set_postfix_str(', '.join(f'loss {key}: {value[-1]:.4f}' for key, value in train_running_loss.items()))
-        loss_item = loss.item()
 
+        loss_item = loss.item()
+        
+        if cfg.show_full_current_loss_in_terminal:
+            pbar.set_postfix_str(', '.join(f'loss {key}: {value[-1]:.4f}' for key, value in train_running_loss.items()))
         pbar.set_postfix_str(f'Loss: {loss_item:.4f}')
 
         train_running_loss['loss'].append(loss_item)

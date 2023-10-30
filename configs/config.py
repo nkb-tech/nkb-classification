@@ -3,6 +3,8 @@ from albumentations.pytorch import ToTensorV2
 from os.path import split
 import cv2
 
+show_full_current_loss_in_terminal = False
+
 compile = False # Is not working correctly yet, so set to False
 log_gradients = True
 n_epochs = 30 + 1
