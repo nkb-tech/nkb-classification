@@ -65,7 +65,7 @@ class SpatialAttentionBlock(nn.Module):
     
     def __init__(
         self, in_channels: int,
-        out_channels_list: tp.List[int],
+        out_channels_list: list[int],
     ):
         """Initialize"""
         super(SpatialAttentionBlock, self).__init__()
