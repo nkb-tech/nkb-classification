@@ -4,6 +4,9 @@ import torch
 from torch import nn, Tensor
 
 
+DEFAULT_FOCAL_GAMMA = 2.0
+
+
 class FocalLoss(nn.Module):
     """ Focal Loss, as described in https://arxiv.org/abs/1708.02002.
 
@@ -19,7 +22,7 @@ class FocalLoss(nn.Module):
 
     def __init__(self,
                  alpha: Optional[Tensor] = None,
-                 gamma: float = 2.0,
+                 gamma: float = DEFAULT_FOCAL_GAMMA,
                  reduction: str = 'mean',
                  ignore_index: int = -100):
         """Constructor.
@@ -101,7 +104,7 @@ def get_loss(cfg_loss, device):
         alpha = None
         if 'alpha' in cfg_loss:
             alpha = torch.tensor(cfg_loss['alpha'], dtype=torch.float)
-        gamma = 0
+        gamma = DEFAULT_FOCAL_GAMMA
         if 'gamma' in cfg_loss:
             gamma = cfg_loss['gamma']
         return FocalLoss(alpha, gamma).to(device)
