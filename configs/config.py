@@ -109,10 +109,10 @@ model = {
 
 optimizer = {
     'type': 'radam',
-    'lr': 1e-5 * 1e-2,
+    'lr': 1e-5,
     'weight_decay': 0.2,
-    'backbone_lr': 1e-5 * 1e-2,
-    'classifier_lr': 1e-3 * 1e-2,
+    'backbone_lr': 1e-5,
+    'classifier_lr': 1e-3,
 }
 
 lr_policy = {
