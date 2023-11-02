@@ -8,13 +8,13 @@ show_full_current_loss_in_terminal = False
 compile = False # Is not working correctly yet, so set to False
 log_gradients = True
 n_epochs = 30 + 1
-device = 'cuda:1'
+device = 'cpu'
 enable_mixed_presicion = True
 enable_gradient_scaler = True
 
 target_names = ['dog_size', 'dog_fur', 'dog_color', 'dog_ear_type', 'dog_muzzle_len', 'dog_leg_len']
 
-model_path = f'/home/denis/src/project/models/classification/multitask/convnext_base_focal_complex_classifier_v1'
+model_path = f'/home/denis/src/project/models/classification/multitask/convnext_base_complex_classifier_v1'
 
 experiment = {
     'api_key_path': '/home/denis/nkbtech/nkb_classification/configs/comet_api_key.txt',
@@ -122,5 +122,5 @@ lr_policy = {
 }
 
 criterion = {
-    'type': 'FocalLoss'
+    'type': 'CrossEntropyLoss'
 }

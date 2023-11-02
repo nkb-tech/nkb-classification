@@ -16,8 +16,8 @@ def get_activation(activ_name: str="relu"):
         raise NotImplementedError
         
 
-class Conv2dBNActiv(nn.Module):
-    """Conv2d -> (BN ->) -> Activation"""
+class Conv1dBNActiv(nn.Module):
+    """Conv1d -> (BN ->) -> Activation"""
     
     def __init__(
         self, in_channels: int, out_channels: int,
@@ -25,9 +25,9 @@ class Conv2dBNActiv(nn.Module):
         bias: bool=False, use_bn: bool=True, activ: str="relu"
     ):
         """"""
-        super(Conv2dBNActiv, self).__init__()
+        super(Conv1dBNActiv, self).__init__()
         layers = []
-        layers.append(nn.Conv2d(
+        layers.append(nn.Conv1d(
             in_channels, out_channels,
             kernel_size, stride, padding, bias=bias))
         if use_bn:
@@ -47,7 +47,7 @@ class SSEBlock(nn.Module):
     def __init__(self, in_channels: int):
         """Initialize."""
         super(SSEBlock, self).__init__()
-        self.channel_squeeze = nn.Conv2d(
+        self.channel_squeeze = nn.Conv1d(
             in_channels=in_channels, out_channels=1,
             kernel_size=1, stride=1, padding=0, bias=False)
         self.sigmoid = nn.Sigmoid()
@@ -76,11 +76,11 @@ class SpatialAttentionBlock(nn.Module):
         
         for i in range(self.n_layers - 1):
             in_chs, out_chs = channels_list[i: i + 2]
-            layer = Conv2dBNActiv(in_chs, out_chs, 3, 1, 1, activ="relu")
+            layer = Conv1dBNActiv(in_chs, out_chs, 3, 1, 1, activ="relu")
             setattr(self, f"conv{i + 1}", layer)
             
         in_chs, out_chs = channels_list[-2:]
-        layer = Conv2dBNActiv(in_chs, out_chs, 3, 1, 1, activ="sigmoid")
+        layer = Conv1dBNActiv(in_chs, out_chs, 3, 1, 1, activ="sigmoid")
         setattr(self, f"conv{self.n_layers}", layer)
     
     def forward(self, x):
