@@ -14,7 +14,7 @@ enable_gradient_scaler = True
 
 target_names = ['dog_size', 'dog_fur', 'dog_color', 'dog_ear_type', 'dog_muzzle_len', 'dog_leg_len']
 
-model_path = f'/home/denis/src/project/models/classification/multitask/convnext_base_focal_warmup_v1'
+model_path = f'/home/denis/src/project/models/classification/multitask/efficientnet_b2_focal_mlp_v1'
 
 experiment = {
     'api_key_path': '/home/denis/nkbtech/nkb_classification/configs/comet_api_key.txt',
@@ -101,7 +101,7 @@ val_data = {
 }
 
 model = {
-    'model': 'convnext_base',
+    'model': 'efficientnet_b2',
     'pretrained': True,
     'backbone_dropout': 0.1,
     'classifier_dropout': 0.1
