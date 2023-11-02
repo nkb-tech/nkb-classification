@@ -22,9 +22,10 @@ class MultilabelModel(nn.Module):
             self.classifiers[target_name] = nn.Sequential(nn.Dropout(cfg_model['classifier_dropout']),
                                                           nn.Linear(self.emb_size, 256),
                                                           nn.ReLU(),
-                                                          nn.Linear(256, 256),
+                                                          nn.Linear(256, 64),
                                                           nn.ReLU(),
-                                                          nn.Linear(256, len(classes[target_name])))
+                                                          nn.Linear(64, len(classes[target_name])))
+        self.initialize_classifiers(strategy=cfg_model['classifier_initialization'])
 
     def forward(self, x: torch.tensor):
         emb = self.emb_model(x)
@@ -32,6 +33,21 @@ class MultilabelModel(nn.Module):
             class_name: classifier(emb)
             for class_name, classifier in self.classifiers.items()
         }
+    
+    def initialize_classifiers(self, strategy='kaiming_normal_'):
+        for classifier in self.classifiers.values():
+            for param in classifier.parameters():
+                if param.ndim >= 2:
+                    if strategy == 'kaiming_normal_':
+                        nn.init.kaiming_normal_(param, nonlinearity='relu')
+                    elif strategy == 'kaiming_uniform_':
+                        nn.init.kaiming_uniform_(param, nonlinearity='relu')
+                    elif strategy == 'xavier_normal_':
+                        nn.init.xavier_normal_(param, nonlinearity='relu')
+                    elif strategy == 'xavier_uniform_':
+                        nn.init.xavier_uniform_(param, nonlinearity='relu')
+                else:
+                    nn.init.zeros_(param)
     
     def set_backbone_state(self, state: str = 'freeze'):
         for param in self.emb_model.parameters():
