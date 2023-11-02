@@ -14,7 +14,7 @@ enable_gradient_scaler = True
 
 target_names = ['dog_size', 'dog_fur', 'dog_color', 'dog_ear_type', 'dog_muzzle_len', 'dog_leg_len']
 
-model_path = f'/home/denis/src/project/models/classification/multitask/convnext_base_focal_v1'
+model_path = f'/home/denis/src/project/models/classification/multitask/convnext_base_focal_warmup_v1'
 
 experiment = {
     'api_key_path': '/home/denis/nkbtech/nkb_classification/configs/comet_api_key.txt',
@@ -95,7 +95,7 @@ val_data = {
     'fold': 'val',
     'weighted_sampling': False,
     'shuffle': True,
-    'batch_size': 32,
+    'batch_size': 64,
     'num_workers': 8,
     'size': img_size,
 }
@@ -108,16 +108,16 @@ model = {
 }
 
 optimizer = {
-    'type': 'nadam',
-    'lr': 1e-5,
+    'type': 'radam',
+    'lr': 1e-5 * 1e-2,
     'weight_decay': 0.2,
-    'backbone_lr': 1e-5,
-    'classifier_lr': 1e-4,
+    'backbone_lr': 1e-5 * 1e-2,
+    'classifier_lr': 1e-3 * 1e-2,
 }
 
 lr_policy = {
     'type': 'multistep',
-    'steps': [20, ],
+    'steps': [10, 20, ],
     'gamma': 0.1,
 }
 
