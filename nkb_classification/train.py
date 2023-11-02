@@ -295,6 +295,7 @@ def main():
     criterion = get_loss(cfg.criterion, cfg.device)
     experiment = get_experiment(cfg.experiment)
     experiment.log_code(cfg_file)
+    experiment.log_code('./model.py')
     train(model,
           train_loader,
           val_loader,
