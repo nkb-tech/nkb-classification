@@ -20,7 +20,11 @@ class MultilabelModel(nn.Module):
         self.classifiers = nn.ModuleDict()
         for target_name in classes:
             self.classifiers[target_name] = nn.Sequential(nn.Dropout(cfg_model['classifier_dropout']),
-                                                          nn.Linear(emb_size, len(classes[target_name])))
+                                                          nn.Linear(self.emb_size, 256),
+                                                          nn.ReLU(),
+                                                          nn.Linear(256, 256),
+                                                          nn.ReLU(),
+                                                          nn.Linear(256, len(classes[target_name])))
 
     def forward(self, x):
         emb = self.emb_model(x)
