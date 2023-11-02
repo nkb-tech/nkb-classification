@@ -14,7 +14,7 @@ class MultilabelModel(nn.Module):
                  cfg_model: dict, 
                  classes: dict):
         super().__init__()
-        self.emb_model, emb_size = self.get_emb_model(cfg_model)
+        self.emb_model, self.emb_size = self.get_emb_model(cfg_model)
         self.set_dropout(self.emb_model, cfg_model['backbone_dropout'])
 
         self.classifiers = nn.ModuleDict()
@@ -26,12 +26,19 @@ class MultilabelModel(nn.Module):
                                                           nn.ReLU(),
                                                           nn.Linear(256, len(classes[target_name])))
 
-    def forward(self, x):
+    def forward(self, x: torch.tensor):
         emb = self.emb_model(x)
         return {
             class_name: classifier(emb)
             for class_name, classifier in self.classifiers.items()
         }
+    
+    def set_backbone_state(self, state: str = 'freeze'):
+        for param in self.emb_model.parameters():
+            if state == 'freeze':
+                param.requires_grad = False
+            elif state == 'unfreeze':
+                param.requires_grad = True
     
     @staticmethod
     def set_dropout(model: nn.Module, drop_rate: float = 0.2) -> None:
