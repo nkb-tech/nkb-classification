@@ -127,6 +127,13 @@ class MultilabelModel(nn.Module):
             class_name: classifier(emb)
             for class_name, classifier in self.classifiers.items()
         }
+
+    def set_backbone_state(self, state: str = 'freeze'):
+        for param in self.emb_model.parameters():
+            if state == 'freeze':
+                param.requires_grad = False
+            elif state == 'unfreeze':
+                param.requires_grad = True
     
     @staticmethod
     def set_dropout(model: nn.Module, drop_rate: float = 0.2) -> None:
