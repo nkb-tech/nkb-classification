@@ -8,7 +8,7 @@ show_full_current_loss_in_terminal = False
 compile = False # Is not working correctly yet, so set to False
 log_gradients = True
 n_epochs = 30 + 1
-device = 'cpu'
+device = 'cuda:0'
 enable_mixed_presicion = True
 enable_gradient_scaler = True
 
@@ -83,8 +83,8 @@ train_data = {
     'fold': 'train',
     'weighted_sampling': False,
     'shuffle': True,
-    'batch_size': 64,
-    'num_workers': 4,
+    'batch_size': 128,
+    'num_workers': 10,
     'size': img_size,
 }   
 
@@ -96,7 +96,7 @@ val_data = {
     'weighted_sampling': False,
     'shuffle': True,
     'batch_size': 64,
-    'num_workers': 4,
+    'num_workers': 8,
     'size': img_size,
 }
 

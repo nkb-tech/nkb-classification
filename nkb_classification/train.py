@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 from collections import defaultdict
@@ -295,6 +296,8 @@ def main():
     criterion = get_loss(cfg.criterion, cfg.device)
     experiment = get_experiment(cfg.experiment)
     experiment.log_code(cfg_file)
+    dir_path = os.path.dirname(os.path.realpath(__file__))
+    experiment.log_code(os.path.join(dir_path, 'model.py'))
     train(model,
           train_loader,
           val_loader,
