@@ -106,7 +106,7 @@ class MultilabelModel(nn.Module):
         super().__init__()
         self.emb_model = timm.create_model(cfg_model['model'], pretrained=cfg_model['pretrained'])
         self.emb_size = self.emb_model.num_features
-        self.emb_model.reset_classifier(0, '')
+        self.emb_model.reset_classifier(0, '')  # a simpler way to get emb_model from a timm model
         self.set_dropout(self.emb_model, cfg_model['backbone_dropout'])
 
         self.classifiers = nn.ModuleDict()
