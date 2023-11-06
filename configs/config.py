@@ -104,11 +104,11 @@ model = {
     'model': 'convnext_base',
     'pretrained': True,
     'backbone_dropout': 0.1,
-    'classifier_dropout': 0.1
+    'classifier_dropout': 0.5
 }
 
 optimizer = {
-    'type': 'radam',
+    'type': 'nadam',
     'lr': 1e-5,
     'weight_decay': 0.2,
     'backbone_lr': 1e-5,
