@@ -21,6 +21,6 @@ setup(
     keywords=['pytorch', 'classification'],
     install_requires=get_requirements('requirements/main.txt'),
     extras_require={
-        'dev': get_requirements('requirements/dev.txt'),
+        'optional': get_requirements('requirements/optional.txt'),
     },
 )

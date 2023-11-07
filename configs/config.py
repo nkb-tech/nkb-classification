@@ -8,13 +8,13 @@ show_full_current_loss_in_terminal = False
 compile = False # Is not working correctly yet, so set to False
 log_gradients = True
 n_epochs = 30 + 1
-device = 'cuda:0'
+device = 'cuda:1'
 enable_mixed_presicion = True
 enable_gradient_scaler = True
 
 target_names = ['dog_size', 'dog_fur', 'dog_color', 'dog_ear_type', 'dog_muzzle_len', 'dog_leg_len']
 
-model_path = f'/home/denis/src/project/models/classification/multitask/convnext_base_complex_classifier_v1'
+model_path = '/home/denis/src/project/models/classification/multitask/convnext_base_complex_classifier_v3'
 
 experiment = {
     'api_key_path': '/home/denis/nkbtech/nkb_classification/configs/comet_api_key.txt',
@@ -83,8 +83,8 @@ train_data = {
     'fold': 'train',
     'weighted_sampling': False,
     'shuffle': True,
-    'batch_size': 128,
-    'num_workers': 10,
+    'batch_size': 64,
+    'num_workers': 8,
     'size': img_size,
 }   
 
@@ -103,7 +103,7 @@ val_data = {
 model = {
     'model': 'convnext_base',
     'pretrained': True,
-    'backbone_dropout': 0.1,
+    'backbone_dropout': 0.5,
     'classifier_dropout': 0.5
 }
 
