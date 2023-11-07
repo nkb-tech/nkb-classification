@@ -112,10 +112,9 @@ class MultilabelModel(nn.Module):
         self.classifiers = nn.ModuleDict()
         for target_name in classes:
             self.classifiers[target_name] = nn.Sequential(
-                SpatialAttentionBlock(self.emb_size, [64, 32, 16, 1]),
+                SpatialAttentionBlock(self.emb_size, [64, 1]),
                 nn.AdaptiveAvgPool2d(output_size=1),
                 nn.Flatten(start_dim=1),
-                nn.Linear(self.emb_size, self.emb_size),
                 nn.ReLU(),
                 nn.Dropout(cfg_model['classifier_dropout']),
                 nn.Linear(self.emb_size, len(classes[target_name]))
