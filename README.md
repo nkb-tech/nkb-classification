@@ -39,7 +39,7 @@ python3 -m inference -cfg `inference_cfg_path`
 
 To enable export models to onnx or torchscript, run first:
 ```bash
-python3 -m pip install -r requirements/dev.txt
+python3 -m pip install -r requirements/optional.txt
 ```
 
 After that, run:
