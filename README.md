@@ -39,20 +39,21 @@ python3 -m inference -cfg `inference_cfg_path`
 
 To enable export models to onnx or torchscript, run first:
 ```bash
-python3 -m pip install -r requirements/dev.txt
+python3 -m pip install -r requirements/optional.txt
 ```
 
 After that, run:
 ```bash
 cd nkb_classification
 python3 -m export \
-    --to onnx \  # supported [torchscript, onnx]
+    --to onnx \  # supported [torchscript, onnx, engine]
     --config `config_model_path` \
     --opset 17 \
     --dynamic batch \  # supported [none, batch, all]
     --sim \  # simplify the graph or not
     --input-shape 1 3 224 224 \
     --device cuda:0 \
+    --half \  # convert to fp16
     --save_path . \  # where to save the model
     --weights `weights_model_path`  # path to model weights
 ```
@@ -60,6 +61,6 @@ python3 -m export \
 ## Develop
 To enable autocheck code before commit, run:
 ```bash
-python3 -m pip install -r requirements/dev.txt
+python3 -m pip install -r requirements/optional.txt
 pre-commit install
 ```
