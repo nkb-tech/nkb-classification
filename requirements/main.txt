@@ -11,4 +11,3 @@ timm
 wheel
 setuptools
 ninja
-nvidia-pyindex

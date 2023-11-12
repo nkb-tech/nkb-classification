@@ -5,6 +5,5 @@ virtualenv
 ipdb
 monkeytype
 onnxruntime
-nvidia-tensorrt
 pandas
 onnxruntime-gpu

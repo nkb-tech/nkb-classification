@@ -100,15 +100,22 @@ def main(args):
     # Load the model
     print(f"Export to {args.to}")
 
+    device = torch.device(args.device)
+
+    # tensorrt device
+    if device.type == "cuda":
+        os.environ["CUDA_VISIBLE_DEVICES"] = str(device.index)
+        device = torch.device("cuda:0")
+
     cfg_file = args.config
     exec(read_py_config(cfg_file), globals(), globals())
 
     # get model
     data_loader = get_dataset(cfg.train_data, cfg.train_pipeline)
-    device = torch.device(args.device)
 
     # get model
     classes = data_loader.dataset.classes
+
     cfg.model["pretrained"] = False
     model = get_model(cfg.model, classes, device, compile=False)
 
@@ -248,9 +255,9 @@ def main(args):
 
         builder = trt.Builder(logger)
         config = builder.create_builder_config()
-        config.set_memory_pool_limit(
-            trt.MemoryPoolType.WORKSPACE, 2 << 30
-        )
+        config.max_workspace_size = torch.cuda.get_device_properties(
+            device
+        ).total_memory
 
         flag = 1 << int(
             trt.NetworkDefinitionCreationFlag.EXPLICIT_BATCH
