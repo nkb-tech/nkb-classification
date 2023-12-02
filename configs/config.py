@@ -14,7 +14,7 @@ enable_gradient_scaler = True
 
 target_names = ['dog_size', 'dog_fur', 'dog_color', 'dog_ear_type', 'dog_muzzle_len', 'dog_leg_len']
 
-model_path = f'/home/denis/src/project/models/classification/multitask/efficientnet_b2_mlp_v1'
+model_path = f'/home/denis/src/project/models/classification/multitask/unicom_vd'
 
 experiment = {
     'api_key_path': '/home/denis/nkbtech/nkb_classification/configs/comet_api_key.txt',
@@ -83,8 +83,8 @@ train_data = {
     'fold': 'train',
     'weighted_sampling': False,
     'shuffle': True,
-    'batch_size': 64,
-    'num_workers': 4,
+    'batch_size': 128,
+    'num_workers': 10,
     'size': img_size,
 }   
 
@@ -95,13 +95,13 @@ val_data = {
     'fold': 'val',
     'weighted_sampling': False,
     'shuffle': True,
-    'batch_size': 64,
-    'num_workers': 4,
+    'batch_size': 128,
+    'num_workers': 10,
     'size': img_size,
 }
 
 model = {
-    'model': 'efficientnet_b2',
+    'model': 'Unicom ViT-B/16',
     'pretrained': True,
     'backbone_dropout': 0.1,
     'classifier_dropout': 0.1,
@@ -109,16 +109,16 @@ model = {
 }
 
 optimizer = {
-    'type': 'radam',
+    'type': 'nadam',
     'lr': 1e-5,
     'weight_decay': 0.2,
     'backbone_lr': 1e-4,
-    'classifier_lr': 1e-4,
+    'classifier_lr': 1e-3,
 }
 
 lr_policy = {
     'type': 'multistep',
-    'steps': [5, 20, ],
+    'steps': [5, 20],
     'gamma': 0.1,
 }
 

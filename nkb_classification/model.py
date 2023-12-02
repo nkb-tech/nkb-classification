@@ -73,7 +73,6 @@ class MultilabelModel(nn.Module):
         if name.lower().startswith('unicom'):
             emb_size = initial_model.feature[-2].out_features
             emb_model = initial_model
-            emb_model.feature = nn.Sequential(*[*emb_model.feature.children()][:-1])
         if name.startswith(('efficientnet', 'mobilenet')):
             emb_size = initial_model.classifier.in_features
             emb_model = nn.Sequential(*[*initial_model.children()][:-1],
