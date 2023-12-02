@@ -1,6 +1,7 @@
 import torch
 from torch import nn
 import timm
+import unicom
 
 
 class MultilabelModel(nn.Module):
@@ -8,7 +9,8 @@ class MultilabelModel(nn.Module):
     A class to make a model consisting of an embedding model (backbone)
     and several classifiers (head)
     Currently maintained architectures are:
-        MobileNet, EfficientNet, ConvNext, ResNet, ViT
+        MobileNet, EfficientNet, ConvNext, ResNet, ViT,
+        Unicom (ViT pretrained for metric learning)
     """
     def __init__(self,
                  cfg_model: dict, 
@@ -20,11 +22,7 @@ class MultilabelModel(nn.Module):
         self.classifiers = nn.ModuleDict()
         for target_name in classes:
             self.classifiers[target_name] = nn.Sequential(nn.Dropout(cfg_model['classifier_dropout']),
-                                                          nn.Linear(self.emb_size, 256),
-                                                          nn.ReLU(),
-                                                          nn.Linear(256, 64),
-                                                          nn.ReLU(),
-                                                          nn.Linear(64, len(classes[target_name])))
+                                                          nn.Linear(self.emb_size, len(classes[target_name])))
         self.initialize_classifiers(strategy=cfg_model['classifier_initialization'])
 
     def forward(self, x: torch.tensor):
@@ -67,7 +65,15 @@ class MultilabelModel(nn.Module):
     @staticmethod
     def get_emb_model(cfg_model: dict):
         name = cfg_model['model']
-        initial_model = timm.create_model(name, pretrained=cfg_model['pretrained'])
+        if name.lower().startswith('unicom'):
+            initial_model, _ = unicom.load(name.split()[1])
+        else:
+            initial_model = timm.create_model(name, pretrained=cfg_model['pretrained'])
+
+        if name.lower().startswith('unicom'):
+            emb_size = initial_model.feature[-2].out_features
+            emb_model = initial_model
+            emb_model.feature = nn.Sequential(*[*emb_model.feature.children()][:-1])
         if name.startswith(('efficientnet', 'mobilenet')):
             emb_size = initial_model.classifier.in_features
             emb_model = nn.Sequential(*[*initial_model.children()][:-1],
@@ -85,7 +91,6 @@ class MultilabelModel(nn.Module):
             emb_size = initial_model.patch_embed.num_patches * initial_model.head.in_features
             emb_model = nn.Sequential(*[*initial_model.children()][:-2],
                                             nn.Flatten())
-            
         return emb_model, emb_size
     
 
