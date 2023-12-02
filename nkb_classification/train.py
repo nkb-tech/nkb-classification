@@ -49,7 +49,8 @@ def train_epoch(model,
         metrics_grad_log = defaultdict(list)
     
     pbar = tqdm(train_loader, leave=False, desc='Training')
-
+    
+    batch_to_log = None
     for img, target in pbar:
         img = img.to(device)
         optimizer.zero_grad()
@@ -110,6 +111,9 @@ def train_epoch(model,
 
             metrics_grad_log["Gradients/Total"].append(total_grad)
 
+        if batch_to_log is None:
+            batch_to_log = img.to('cpu')
+
     if scheduler is not None:
         scheduler.step()
 
@@ -117,7 +121,8 @@ def train_epoch(model,
         'running_loss': train_running_loss,
         'confidences': train_confidences,
         'predictions': train_predictions,
-        'ground_truth': train_ground_truth
+        'ground_truth': train_ground_truth,
+        'images': batch_to_log
     }
 
     if cfg.log_gradients:
@@ -230,9 +235,17 @@ def train(model,
 
         epoch_val_acc = None
         if experiment is not None:  # log metrics
-            log_images(experiment, 
-                    epoch, 
-                    val_results['images'])
+            log_images(
+                experiment,
+                'Train', 
+                epoch,
+                train_results['images'])
+            
+            log_images(
+                experiment,
+                'Validation',
+                epoch, 
+                val_results['images'])
 
             train_metrics = compute_metrics(train_results,
                                             target_names)
@@ -285,12 +298,14 @@ def main():
     classes = train_loader.dataset.classes
     device = torch.device(cfg.device)
     model = get_model(cfg.model, classes, device, compile=cfg.compile)
+    model.set_backbone_state('freeze')
+    import ipdb; ipdb.set_trace()
     optimizer = get_optimizer(
         parameters=[
             {"params": model.emb_model.parameters(), "lr": cfg.optimizer['backbone_lr']},
             {"params": model.classifiers.parameters(), "lr": cfg.optimizer['classifier_lr']},
         ],
-        cfg=cfg.optimizer,
+        cfg=cfg.optimizer
     )
     scheduler = get_scheduler(optimizer, cfg.lr_policy)
     criterion = get_loss(cfg.criterion, cfg.device)

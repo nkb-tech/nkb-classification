@@ -57,7 +57,8 @@ def get_scheduler(opt, lr_policy):
     return scheduler
 
 
-def log_images(experiment, 
+def log_images(experiment,
+               name,
                epoch,
                batch_to_log):
     inv_transform = transforms.Compose([
@@ -68,7 +69,7 @@ def log_images(experiment,
         transforms.ToPILImage(),
     ])
     grid = inv_transform(make_grid(batch_to_log, nrow=8, padding=2))
-    experiment.log_image(grid, name=f'Epoch {epoch}', step=epoch)
+    experiment.log_image(grid, name=name, step=epoch)
 
 
 def log_grads(experiment, 
