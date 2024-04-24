@@ -51,7 +51,7 @@ Objects with the `-1` fold value are ignored. Target columns are scpicfied in th
 
 To enable export models to onnx or torchscript, run first:
 ```bash
-python3 -m pip install -r requirements/dev.txt
+python3 -m pip install -r requirements/optional.txt
 ```
 
 After that, run:
