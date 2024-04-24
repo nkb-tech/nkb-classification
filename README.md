@@ -1,4 +1,4 @@
-# NKB Classification
+ # NKB Classification
 
 Easy framework for computer vision classification tasks.
 
@@ -34,6 +34,18 @@ python3 -m train -cfg `cfg_path`
 cd nkb_classification
 python3 -m inference -cfg `inference_cfg_path`
 ```
+
+## Dataset format
+The dataset is provided as a `csv` table with paths to the images and annotations for each image which include train/val/test partition. Specifically, it should have the following structure
+
+|| column_0 | column_1 | column_2 | ... | column_n | path | fold |
+|-|---|---|---|---|---|---|---|
+|0|value_0_0|value_1_0|value_2_0|...|value_n_0|/home/user/data/img_0.jpg|train|
+|1|value_0_1|value_1_1|value_2_1|...|value_n_1|/home/user/data/img_1.jpg|val|
+|2|value_0_2|value_1_2|value_2_2|...|value_n_2|/home/user/data/img_2.jpg|test|
+|3|value_0_3|value_1_3|value_2_3|...|value_n_3|/home/user/data/img_3.jpg|-1|
+
+Objects with the `-1` fold value are ignored. Target columns are scpicfied in the `config` file by the `target_names` list. The path to the `csv` table is also provided through the `config` file.
 
 ## Run onnx export
 
