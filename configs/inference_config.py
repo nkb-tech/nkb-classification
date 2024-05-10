@@ -23,8 +23,8 @@ inference_pipeline = A.Compose([
 ])
 
 inference_data = {
-    'root': '/home/alexander/nkbtech/petsearch/data/cam_dog_crops_dataset/images',
-    'train_annotations_file': '/home/denis/nkbtech/data/Dog_expo_Vladimir_02_07_2023_mp4_frames/multiclass_v4/multitask/annotation_high_res_video_split_v1.csv',
+    'root': '/home/slava/hdd/hdd4/Datasets/petsearch/Dog_expo_Vladimir_02_07_2023_mp4_frames/multiclass_v4/images',
+    'train_annotations_file': '/home/slava/nkb-classification/jupyters_exps/annotation_high_res_video_split_v2_slava.csv',
     'target_names': target_names,
     'batch_size': 64,
     'num_workers': 4,

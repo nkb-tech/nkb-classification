@@ -20,9 +20,13 @@ class MultilabelModel(nn.Module):
         self.set_dropout(self.emb_model, cfg_model['backbone_dropout'])
 
         self.classifiers = nn.ModuleDict()
+
         for target_name in classes:
             self.classifiers[target_name] = nn.Sequential(nn.Dropout(cfg_model['classifier_dropout']),
                                                           nn.Linear(self.emb_size, len(classes[target_name])))
+            
+        # TODO load state dict if pretrained 
+        
         self.initialize_classifiers(strategy=cfg_model['classifier_initialization'])
 
     def forward(self, x: torch.tensor):

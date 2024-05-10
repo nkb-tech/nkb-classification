@@ -7,19 +7,19 @@ show_full_current_loss_in_terminal = False
 
 compile = False # Is not working correctly yet, so set to False
 log_gradients = True
-n_epochs = 30 + 1
+n_epochs = 1 + 1
 device = 'cuda:1'
 enable_mixed_presicion = True
 enable_gradient_scaler = True
 
 target_names = ['dog_size', 'dog_fur', 'dog_color', 'dog_ear_type', 'dog_muzzle_len', 'dog_leg_len']
 
-model_path = f'/home/denis/src/project/models/classification/multitask/unicom_vd'
+model_path = f'runs/demo_train'
 
 experiment = {
-    'api_key_path': '/home/denis/nkbtech/nkb_classification/configs/comet_api_key.txt',
-    'project_name': 'PetSearch_MultiTask',
-    'workspace': 'dentikka',
+    'api_key_path': '/home/slava/nkb-classification/configs/comet_api_key.txt',
+    'project_name': 'nkb-classification',
+    'workspace': 'viacheslavm21',
     'auto_metric_logging': False,
     'name': split(model_path)[-1],
 }
@@ -78,7 +78,7 @@ val_pipeline = A.Compose([
 
 train_data = {
     'type': 'AnnotatedMultitargetDataset',
-    'ann_file': '/home/denis/nkbtech/data/Dog_expo_Vladimir_02_07_2023_mp4_frames/multiclass_v4/multitask/annotation_high_res_video_split_v2.csv',
+    'ann_file': '/home/slava/nkb-classification/jupyters_exps/annotation_high_res_video_split_v2_slava.csv',
     'target_names': target_names,
     'fold': 'train',
     'weighted_sampling': False,
@@ -90,7 +90,7 @@ train_data = {
 
 val_data = {
     'type': 'AnnotatedMultitargetDataset',
-    'ann_file': '/home/denis/nkbtech/data/Dog_expo_Vladimir_02_07_2023_mp4_frames/multiclass_v4/multitask/annotation_high_res_video_split_v2.csv',
+    'ann_file': '/home/slava/nkb-classification/jupyters_exps/annotation_high_res_video_split_v2_slava.csv',
     'target_names': target_names,
     'fold': 'val',
     'weighted_sampling': False,

@@ -312,7 +312,7 @@ def main():
     experiment = get_experiment(cfg.experiment)
     experiment.log_code(cfg_file)
     dir_path = os.path.dirname(os.path.realpath(__file__))
-    experiment.log_code(os.path.join(dir_path, './model.py'))
+    experiment.log_code(os.path.join(dir_path, 'nkb_classification/model.py'))
     train(model,
           train_loader,
           val_loader,
