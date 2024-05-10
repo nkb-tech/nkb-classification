@@ -19,6 +19,3 @@ inference_data:
         5: 'vagon',
     }
 save_path: /home/alex/a.nevarko/data/gpt/vagons_cls/test_data/L1_debug_res
-
-
-    
