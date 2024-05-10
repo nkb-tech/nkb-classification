@@ -19,6 +19,3 @@ inference_data:
         5: 'vagon',
     }
 save_path: /home/alex/a.nevarko/data/gpt/vagons_cls/test_data/2023-01-27_11-12-49.217540_res
-
-
-    
