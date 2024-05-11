@@ -1,9 +1,8 @@
-import torch.nn as nn
+import pickle as pkl
+from pathlib import Path
+
 import albumentations as A
 from albumentations.pytorch import ToTensorV2
-from os.path import split
-from pathlib import Path
-import pickle as pkl
 
 n_epochs = 51
 device = "cuda:0"
@@ -44,4 +43,6 @@ model = {
     "checkpoint": "/home/alexander/src/project/models/classification/nkb-breed/mobnetv3l_augs_baseline_224/last.pth",
 }
 
-save_path = "/home/alexander/src/project/data/cam_dog_crops_dataset/predictions"
+save_path = (
+    "/home/alexander/src/project/data/cam_dog_crops_dataset/predictions"
+)

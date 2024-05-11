@@ -1,8 +1,8 @@
-import torch.nn as nn
-import albumentations as A
-from albumentations.pytorch import ToTensorV2
 from os.path import split
-import cv2
+
+import albumentations as A
+import torch.nn as nn
+from albumentations.pytorch import ToTensorV2
 
 n_epochs = 51
 device = "cuda:1"

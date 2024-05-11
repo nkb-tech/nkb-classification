@@ -5,3 +5,5 @@ virtualenv
 ipdb
 monkeytype
 onnxruntime
+pandas
+onnxruntime-gpu

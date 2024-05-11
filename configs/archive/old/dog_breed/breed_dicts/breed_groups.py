@@ -5,7 +5,13 @@ __all__ = ["tsinghua_dict", "stanford_dict"]
 general_dict = OrderedDict(
     {
         "french_bulldog": ["french_bulldog", "boston_bull"],
-        "borzoi": ["saluki", "afghan_hound", "italian_greyhound", "borzoi", "whippet"],
+        "borzoi": [
+            "saluki",
+            "afghan_hound",
+            "italian_greyhound",
+            "borzoi",
+            "whippet",
+        ],
         "english_wolfhound": ["irish_wolfhound", "scottish_deerhound"],
         "french_shepherd": ["briard", "bouvier_des_flandres"],
         "komondor": ["komondor"],
@@ -14,7 +20,11 @@ general_dict = OrderedDict(
             "ibizan_hound",
             "african_hunting_dog",
         ],
-        "bloodhound": ["bloodhound", "fila_braziliero", "black_and_tan_coonhound"],
+        "bloodhound": [
+            "bloodhound",
+            "fila_braziliero",
+            "black_and_tan_coonhound",
+        ],
         "pug": ["pug", "brabancon_griffo"],
         "akita": ["dingo", "shiba_dog", "dhole"],
         "chow": ["chow"],
@@ -25,7 +35,12 @@ general_dict = OrderedDict(
             "american_staffordshire_terrier",
             "staffordshire_bullterrier",
         ],
-        "pekinese": ["pekinese", "papillon", "chinese_rural_dog", "japanese_spaniel"],
+        "pekinese": [
+            "pekinese",
+            "papillon",
+            "chinese_rural_dog",
+            "japanese_spaniel",
+        ],
         "spitz": ["pomeranian", "japanese_spitzes", "keeshond"],
         "smooth_haired_big_size_lop_eared": [
             "rhodesian_ridgeback",
@@ -49,7 +64,11 @@ general_dict = OrderedDict(
             "otterhound",
             "standard_poodle",
         ],
-        "schnauzer": ["miniature_schnauzer", "standard_schnauzer", "giant_schnauzer"],
+        "schnauzer": [
+            "miniature_schnauzer",
+            "standard_schnauzer",
+            "giant_schnauzer",
+        ],
         "english_terrier": [
             "irish_terrier",
             "airedale",
@@ -80,7 +99,12 @@ general_dict = OrderedDict(
             "cocker_spaniel",
         ],
         "dog_doberman": ["doberman", "great_dane", "cane_carso"],
-        "husky": ["eskimo_dog", "siberian_husky", "malamute", "samoyed"],
+        "husky": [
+            "eskimo_dog",
+            "siberian_husky",
+            "malamute",
+            "samoyed",
+        ],
         "labrador_retriever": [
             "flat_coated_retriever",
             "golden_retriever",
@@ -125,13 +149,21 @@ general_dict = OrderedDict(
             "entlebucher",
             "appenzeller",
         ],
-        "toy_terrier": ["toy_terrier", "chihuahua", "miniature_pinscher"],
+        "toy_terrier": [
+            "toy_terrier",
+            "chihuahua",
+            "miniature_pinscher",
+        ],
     }
 )
 
 tsinghua_dict = OrderedDict(
     {
-        "akita": ["217-n000079-dingo", "1043-n000001-Shiba_Dog", "209-n000043-dhole"],
+        "akita": [
+            "217-n000079-dingo",
+            "1043-n000001-Shiba_Dog",
+            "209-n000043-dhole",
+        ],
         "beagle_spaniel": [
             "232-n000076-Brittany_spaniel",
             "241-n000100-basset",
@@ -194,8 +226,14 @@ tsinghua_dict = OrderedDict(
             "224-n000039-Irish_wolfhound",
             "224-n000056-Scottish_deerhound",
         ],
-        "french_bulldog": ["1121-n000002-French_bulldog", "230-n000084-Boston_bull"],
-        "french_shepherd": ["230-n000041-briard", "233-n000072-Bouvier_des_Flandres"],
+        "french_bulldog": [
+            "1121-n000002-French_bulldog",
+            "230-n000084-Boston_bull",
+        ],
+        "french_shepherd": [
+            "230-n000041-briard",
+            "233-n000072-Bouvier_des_Flandres",
+        ],
         "husky": [
             "232-n000083-Eskimo_dog",
             "1324-n000004-malamute",
@@ -328,7 +366,10 @@ stanford_dict = OrderedDict(
             "n02101556-clumber",
             "n02111277-Newfoundland",
         ],
-        "bloodhound": ["n02088466-bloodhound", "n02089078-black-and-tan_coonhound"],
+        "bloodhound": [
+            "n02088466-bloodhound",
+            "n02089078-black-and-tan_coonhound",
+        ],
         "borzoi": [
             "n02091831-Saluki",
             "n02088094-Afghan_hound",
@@ -363,8 +404,14 @@ stanford_dict = OrderedDict(
             "n02090721-Irish_wolfhound",
             "n02092002-Scottish_deerhound",
         ],
-        "french_bulldog": ["n02108915-French_bulldog", "n02096585-Boston_bull"],
-        "french_shepherd": ["n02105251-briard", "n02106382-Bouvier_des_Flandres"],
+        "french_bulldog": [
+            "n02108915-French_bulldog",
+            "n02096585-Boston_bull",
+        ],
+        "french_shepherd": [
+            "n02105251-briard",
+            "n02106382-Bouvier_des_Flandres",
+        ],
         "husky": [
             "n02109961-Eskimo_dog",
             "n02110063-malamute",

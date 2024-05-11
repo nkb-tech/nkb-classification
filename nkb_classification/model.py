@@ -1,7 +1,7 @@
-import torch
-from torch import nn
 import timm
+import torch
 import unicom
+from torch import nn
 
 
 class MultilabelModel(nn.Module):
@@ -12,6 +12,8 @@ class MultilabelModel(nn.Module):
         MobileNet, EfficientNet, ConvNext, ResNet, ViT,
         Unicom (ViT pretrained for metric learning)
     """
+
+    def __init__(self, cfg_model: dict, classes: dict):
 
     def __init__(self, cfg_model: dict, classes: dict):
         super().__init__()
@@ -66,6 +68,7 @@ class MultilabelModel(nn.Module):
             if isinstance(child, torch.nn.Dropout):
                 child.p = drop_rate
             MultilabelModel.set_dropout(child, drop_rate=drop_rate)
+
 
     @staticmethod
     def get_emb_model(cfg_model: dict):

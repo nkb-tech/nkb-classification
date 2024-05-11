@@ -1,5 +1,8 @@
 from typing import List
-from setuptools import setup, find_packages
+
+from setuptools import find_packages, setup
+
+from nkb_classification import __version__
 
 
 def get_requirements(path: str) -> List[str]:
@@ -23,6 +26,6 @@ setup(
     keywords=["pytorch", "classification"],
     install_requires=get_requirements("requirements/main.txt"),
     extras_require={
-        "dev": get_requirements("requirements/optional.txt"),
+        "optional": get_requirements("requirements/optional.txt"),
     },
 )

@@ -1,8 +1,8 @@
-import torch.nn as nn
-import albumentations as A
-from albumentations.pytorch import ToTensorV2
 from os.path import split
-import cv2
+
+import albumentations as A
+import torch.nn as nn
+from albumentations.pytorch import ToTensorV2
 
 n_epochs = 51
 device = "cuda:1"
@@ -13,7 +13,9 @@ experiment = {
     "project_name": "PetSearch",
     "workspace": "dentikka",
     "auto_metric_logging": False,
-    "name": "dog_color_" + split(model_path)[-1] + "_strat_video_split_v1",
+    "name": "dog_color_"
+    + split(model_path)[-1]
+    + "_strat_video_split_v1",
 }
 
 train_pipeline = A.Compose(

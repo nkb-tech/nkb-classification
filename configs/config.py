@@ -1,7 +1,8 @@
-import albumentations as A
-from albumentations.pytorch import ToTensorV2
 from os.path import split
+
+import albumentations as A
 import cv2
+from albumentations.pytorch import ToTensorV2
 
 show_full_current_loss_in_terminal = False
 
@@ -37,7 +38,10 @@ train_pipeline = A.Compose(
     [
         A.LongestMaxSize(img_size, always_apply=True),
         A.PadIfNeeded(
-            img_size, img_size, always_apply=True, border_mode=cv2.BORDER_CONSTANT
+            img_size,
+            img_size,
+            always_apply=True,
+            border_mode=cv2.BORDER_CONSTANT,
         ),
         A.MotionBlur(blur_limit=3, allow_shifted=True, p=0.5),
         A.RandomBrightnessContrast(
@@ -46,10 +50,18 @@ train_pipeline = A.Compose(
             p=0.5,
         ),
         A.HueSaturationValue(
-            hue_shift_limit=0, sat_shift_limit=10, val_shift_limit=50, p=0.5
+            hue_shift_limit=0,
+            sat_shift_limit=10,
+            val_shift_limit=50,
+            p=0.5,
         ),
         A.RandomShadow(p=0.5),
-        A.RandomFog(fog_coef_lower=0.3, fog_coef_upper=0.5, alpha_coef=0.28, p=0.5),
+        A.RandomFog(
+            fog_coef_lower=0.3,
+            fog_coef_upper=0.5,
+            alpha_coef=0.28,
+            p=0.5,
+        ),
         A.RandomRain(p=0.5),
         A.CoarseDropout(
             max_holes=4,
@@ -73,7 +85,10 @@ val_pipeline = A.Compose(
     [
         A.LongestMaxSize(img_size, always_apply=True),
         A.PadIfNeeded(
-            img_size, img_size, always_apply=True, border_mode=cv2.BORDER_CONSTANT
+            img_size,
+            img_size,
+            always_apply=True,
+            border_mode=cv2.BORDER_CONSTANT,
         ),
         A.Normalize(
             mean=(0.485, 0.456, 0.406),

@@ -1,8 +1,9 @@
-import torch.nn as nn
-import albumentations as A
-from albumentations.pytorch import ToTensorV2
 from os.path import split
+
+import albumentations as A
 import cv2
+import torch.nn as nn
+from albumentations.pytorch import ToTensorV2
 
 n_epochs = 21
 device = "cuda:1"
@@ -19,7 +20,12 @@ experiment = {
 train_pipeline = A.Compose(
     [
         A.LongestMaxSize(max_size=224, always_apply=True),
-        A.PadIfNeeded(224, 224, always_apply=True, border_mode=cv2.BORDER_REFLECT_101),
+        A.PadIfNeeded(
+            224,
+            224,
+            always_apply=True,
+            border_mode=cv2.BORDER_REFLECT_101,
+        ),
         A.Resize(224, 224),
         A.MotionBlur(blur_limit=3, allow_shifted=True, p=0.5),
         A.RandomBrightnessContrast(
@@ -38,7 +44,12 @@ train_pipeline = A.Compose(
 val_pipeline = A.Compose(
     [
         A.LongestMaxSize(max_size=224, always_apply=True),
-        A.PadIfNeeded(224, 224, always_apply=True, border_mode=cv2.BORDER_REFLECT_101),
+        A.PadIfNeeded(
+            224,
+            224,
+            always_apply=True,
+            border_mode=cv2.BORDER_REFLECT_101,
+        ),
         A.Resize(224, 224),
         A.Normalize(
             mean=(0.485, 0.456, 0.406),

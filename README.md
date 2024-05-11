@@ -21,6 +21,20 @@ source env/bin/activate
 python3 -m pip install -e .
 ```
 
+### ... via docker
+
+```bash
+docker build --tag nkb-cls-im --file Dockerfile .
+docker run \
+    -itd \
+    --ipc host \
+    --gpus all \
+    --name nkb-cls-cont \
+    --volume <host>:<docker> \ # put here path to models/configs to bind with docker image
+    nkb-cls-im
+docker exec -it nkb-cls-cont /bin/bash
+```
+
 ## Run train
 
 ```bash
@@ -51,20 +65,21 @@ Objects with the `-1` fold value are ignored. Target columns are scpicfied in th
 
 To enable export models to onnx or torchscript, run first:
 ```bash
-python3 -m pip install -r requirements/dev.txt
+python3 -m pip install -r requirements/optional.txt
 ```
 
 After that, run:
 ```bash
 cd nkb_classification
 python3 -m export \
-    --to onnx \  # supported [torchscript, onnx]
+    --to onnx \  # supported [torchscript, onnx, engine]
     --config `config_model_path` \
     --opset 17 \
     --dynamic batch \  # supported [none, batch, all]
     --sim \  # simplify the graph or not
     --input-shape 1 3 224 224 \
     --device cuda:0 \
+    --half \  # convert to fp16
     --save_path . \  # where to save the model
     --weights `weights_model_path`  # path to model weights
 ```
@@ -72,6 +87,8 @@ python3 -m export \
 ## Develop
 To enable autocheck code before commit, run:
 ```bash
-python3 -m pip install -r requirements/dev.txt
+# install tensorrt if needed to export
+python3 -m pip install --no-cache nvidia-tensorrt --index-url https://pypi.ngc.nvidia.com
+python3 -m pip install -r requirements/optional.txt
 pre-commit install
 ```

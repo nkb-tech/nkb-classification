@@ -1,12 +1,21 @@
 import albumentations as A
-from albumentations.pytorch import ToTensorV2
-from os.path import split
 import cv2
+from albumentations.pytorch import ToTensorV2
 
+device = "cuda:1"
 device = "cuda:1"
 
 save_path = "/home/denis/nkbtech/inference"
+save_path = "/home/denis/nkbtech/inference"
 
+target_names = [
+    "dog_size",
+    "dog_fur",
+    "dog_color",
+    "dog_ear_type",
+    "dog_muzzle_len",
+    "dog_leg_len",
+]
 target_names = [
     "dog_size",
     "dog_fur",
@@ -22,7 +31,10 @@ inference_pipeline = A.Compose(
     [
         A.LongestMaxSize(img_size, always_apply=True),
         A.PadIfNeeded(
-            img_size, img_size, always_apply=True, border_mode=cv2.BORDER_CONSTANT
+            img_size,
+            img_size,
+            always_apply=True,
+            border_mode=cv2.BORDER_CONSTANT,
         ),
         A.Normalize(
             mean=(0.485, 0.456, 0.406),

@@ -1,31 +1,26 @@
+import argparse
 import os
-from pathlib import Path
-
 from collections import defaultdict
-
-import comet_ml
+from pathlib import Path
 
 import torch
 from torch.cuda.amp import GradScaler
-
-import argparse
 from tqdm import tqdm
 
 from nkb_classification.dataset import get_dataset
-from nkb_classification.model import get_model
 from nkb_classification.losses import get_loss
 from nkb_classification.metrics import (
     compute_metrics,
-    log_metrics,
     log_confusion_matrices,
+    log_metrics,
 )
-
+from nkb_classification.model import get_model
 from nkb_classification.utils import (
     get_experiment,
     get_optimizer,
     get_scheduler,
-    log_images,
     log_grads,
+    log_images,
     read_py_config,
 )
 
@@ -59,7 +54,9 @@ def train_epoch(
         optimizer.zero_grad()
 
         with torch.autocast(
-            device_type="cuda", dtype=torch.float16, enabled=cfg.enable_mixed_presicion
+            device_type="cuda",
+            dtype=torch.float16,
+            enabled=cfg.enable_mixed_presicion,
         ):
             preds = model(img)
             loss = 0
@@ -68,7 +65,9 @@ def train_epoch(
                 target_loss = criterion(
                     preds[target_name], target[target_name].to(device)
                 )
-                train_running_loss[target_name].append(target_loss.item())
+                train_running_loss[target_name].append(
+                    target_loss.item()
+                )
                 loss += target_loss
 
         loss_item = loss.item()
@@ -101,7 +100,12 @@ def train_epoch(
                 .tolist()
             )
             train_predictions[target_name].extend(
-                preds[target_name].argmax(dim=-1).detach().cpu().numpy().tolist()
+                preds[target_name]
+                .argmax(dim=-1)
+                .detach()
+                .cpu()
+                .numpy()
+                .tolist()
             )
 
         if cfg.log_gradients:
@@ -148,7 +152,9 @@ def val_epoch(model, val_loader, criterion, target_names, device, cfg):
     for img, target in tqdm(val_loader, leave=False, desc="Evaluating"):
         img = img.to(device)
         with torch.autocast(
-            device_type="cuda", dtype=torch.float16, enabled=cfg.enable_mixed_presicion
+            device_type="cuda",
+            dtype=torch.float16,
+            enabled=cfg.enable_mixed_presicion,
         ):
             preds = model(img)
             loss = 0
@@ -208,7 +214,8 @@ def train(
     class_to_idx = train_loader.dataset.class_to_idx
     target_names = [*sorted(class_to_idx)]
     label_names = {
-        target_name: [*class_to_idx[target_name].keys()] for target_name in target_names
+        target_name: [*class_to_idx[target_name].keys()]
+        for target_name in target_names
     }
 
     scaler = GradScaler(enabled=cfg.enable_gradient_scaler)
@@ -226,45 +233,75 @@ def train(
             cfg,
         )
 
-        val_results = val_epoch(model, val_loader, criterion, target_names, device, cfg)
+        val_results = val_epoch(
+            model, val_loader, criterion, target_names, device, cfg
+        )
 
         epoch_val_acc = None
         if experiment is not None:  # log metrics
-            log_images(experiment, "Train", epoch, train_results["images"])
+            log_images(
+                experiment, "Train", epoch, train_results["images"]
+            )
 
-            log_images(experiment, "Validation", epoch, val_results["images"])
+            log_images(
+                experiment, "Validation", epoch, val_results["images"]
+            )
 
             train_metrics = compute_metrics(train_results, target_names)
 
             log_metrics(
-                experiment, target_names, label_names, epoch, train_metrics, "Train"
+                experiment,
+                target_names,
+                label_names,
+                epoch,
+                train_metrics,
+                "Train",
             )
 
             val_metrics = compute_metrics(val_results, target_names)
             epoch_val_acc = val_metrics["epoch_acc"]
 
             log_metrics(
-                experiment, target_names, label_names, epoch, val_metrics, "Validation"
+                experiment,
+                target_names,
+                label_names,
+                epoch,
+                val_metrics,
+                "Validation",
             )
 
             log_confusion_matrices(
-                experiment, target_names, label_names, epoch, val_results, "Validation"
+                experiment,
+                target_names,
+                label_names,
+                epoch,
+                val_results,
+                "Validation",
             )
 
             if cfg.log_gradients:
-                log_grads(experiment, epoch, train_results["metrics_grad_log"])
+                log_grads(
+                    experiment, epoch, train_results["metrics_grad_log"]
+                )
 
         if epoch_val_acc is not None:
             if epoch_val_acc > best_val_acc:
                 best_val_acc = epoch_val_acc
-                torch.save(model.state_dict(), Path(model_path, "best.pth"))
+                torch.save(
+                    model.state_dict(), Path(model_path, "best.pth")
+                )
         torch.save(model.state_dict(), Path(model_path, "last.pth"))
 
 
 def main():
     parser = argparse.ArgumentParser(description="Train arguments")
     parser.add_argument(
-        "-cfg", "--config", help="Config file path", type=str, default="", required=True
+        "-cfg",
+        "--config",
+        help="Config file path",
+        type=str,
+        default="",
+        required=True,
     )
     args = parser.parse_args()
     cfg_file = args.config
@@ -296,7 +333,9 @@ def main():
     experiment = get_experiment(cfg.experiment)
     experiment.log_code(cfg_file)
     dir_path = os.path.dirname(os.path.realpath(__file__))
-    experiment.log_code(os.path.join(dir_path, "nkb_classification/model.py"))
+    experiment.log_code(
+        os.path.join(dir_path, "nkb_classification/model.py")
+    )
     train(
         model,
         train_loader,

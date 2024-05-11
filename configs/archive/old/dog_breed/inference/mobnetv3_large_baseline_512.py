@@ -2,7 +2,9 @@ import albumentations as A
 from albumentations.pytorch import ToTensorV2
 
 device = "cuda:0"
-model_path = "/home/alex/a.nevarko/models/vagon_cls/efb2_augs_baseline_512"
+model_path = (
+    "/home/alex/a.nevarko/models/vagon_cls/efb2_augs_baseline_512"
+)
 
 inference_pipeline = A.Compose(
     [
@@ -36,4 +38,6 @@ model = {
     "checkpoint": "/home/alex/a.nevarko/models/vagon_cls/mobilenetv3_large_100_v2_balanced/last.pth",
 }
 
-save_path = "/home/alex/a.nevarko/data/gpt/vagons_cls/test_data/par_cisterna"
+save_path = (
+    "/home/alex/a.nevarko/data/gpt/vagons_cls/test_data/par_cisterna"
+)

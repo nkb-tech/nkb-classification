@@ -1,8 +1,7 @@
 from typing import Optional
 
 import torch
-from torch import nn, Tensor
-
+from torch import Tensor, nn
 
 DEFAULT_FOCAL_GAMMA = 2.0
 
@@ -39,7 +38,9 @@ class FocalLoss(nn.Module):
                 Defaults to -100.
         """
         if reduction not in ("mean", "sum", "none"):
-            raise ValueError('Reduction must be one of: "mean", "sum", "none".')
+            raise ValueError(
+                'Reduction must be one of: "mean", "sum", "none".'
+            )
 
         super().__init__()
         self.alpha = alpha
@@ -111,4 +112,6 @@ def get_loss(cfg_loss, device):
             gamma = cfg_loss["gamma"]
         return FocalLoss(alpha, gamma).to(device)
     else:
-        raise NotImplementedError(f'Unknown loss type in config: {cfg_loss["type"]}')
+        raise NotImplementedError(
+            f'Unknown loss type in config: {cfg_loss["type"]}'
+        )
