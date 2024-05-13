@@ -9,7 +9,7 @@ show_full_current_loss_in_terminal = False
 compile = False  # Is not working correctly yet, so set to False
 log_gradients = True
 n_epochs = 1 + 1
-device = "cuda:1"
+device = "cuda:0"
 enable_mixed_presicion = True
 enable_gradient_scaler = True
 
@@ -22,7 +22,7 @@ target_names = [
     "dog_leg_len",
 ]
 
-model_path = f"/home/slava/nkb-classification/runs/demo_train3"
+model_path = f"/home/slava/nkb-classification/runs/demo_train5"
 
 experiment = {
     "api_key_path": "/home/slava/nkb-classification/configs/comet_api_key.txt",
@@ -105,7 +105,7 @@ train_data = {
     "fold": "train",
     "weighted_sampling": False,
     "shuffle": True,
-    "batch_size": 128,
+    "batch_size": 32,
     "num_workers": 10,
     "size": img_size,
 }
@@ -127,6 +127,7 @@ model = {
     "pretrained": True,
     "backbone_dropout": 0.1,
     "classifier_dropout": 0.1,
+    "classifier_initialization": "kaiming_normal_",
 }
 
 optimizer = {

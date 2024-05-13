@@ -14,8 +14,6 @@ class MultilabelModel(nn.Module):
     """
 
     def __init__(self, cfg_model: dict, classes: dict):
-
-    def __init__(self, cfg_model: dict, classes: dict):
         super().__init__()
         self.emb_model, self.emb_size = self.get_emb_model(cfg_model)
         self.set_dropout(self.emb_model, cfg_model["backbone_dropout"])

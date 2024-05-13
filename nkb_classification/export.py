@@ -103,9 +103,9 @@ def main(args):
     device = torch.device(args.device)
 
     # tensorrt device
-    if device.type == "cuda":
-        os.environ["CUDA_VISIBLE_DEVICES"] = str(device.index)
-        device = torch.device("cuda:0")
+    # if device.type == "cuda":
+    #     os.environ["CUDA_VISIBLE_DEVICES"] = str(device.index)
+    #     device = torch.device("cuda:0")
 
     cfg_file = args.config
     exec(read_py_config(cfg_file), globals(), globals())
