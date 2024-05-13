@@ -312,9 +312,8 @@ def main():
     device = torch.device(cfg.device)
     model = get_model(cfg.model, classes, device, compile=cfg.compile)
     model.set_backbone_state("freeze")
-    import ipdb
 
-    ipdb.set_trace()
+    import ipdb; ipdb.set_trace()
     optimizer = get_optimizer(
         parameters=[
             {

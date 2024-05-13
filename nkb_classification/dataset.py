@@ -142,8 +142,63 @@ class GroupsDataset(Dataset):
 
         return data_infos
 
+class AnnotatedSingletaskDataset(Dataset):
+    """
+    AnnotatedSingletargetDataset provides a way to do single-target classification.
 
-class AnnotatedMultitargetDataset(Dataset):
+    Args:
+        annotations_file: path to the annotation file, which contains a pandas dataframe
+                          with image pahts and their target values
+        target_column: name of the column containing class annotations
+        fold: which fold in the dataset to work with (train, val, test, -1)
+        trnsform: which transform to apply to the image before returning it in the __getitem__ method
+    """
+
+    def __init__(
+        self,
+        annotations_file,
+        target_column,
+        fold="test",
+        transform=None,
+    ):
+        self.table = pd.read_csv(annotations_file, index_col=0)
+        self.table = self.table[self.table["fold"] == fold]
+        self.target_column = target_column
+        self.classes = np.unique(self.table[target_column].values)
+
+        self.class_to_idx = {k: i for i, k in enumerate(self.classes)}
+
+        self.idx_to_class = {idx: lb for lb, idx in self.class_to_idx.items()}
+
+        self.transform = transform
+
+    def __len__(self):
+        return len(self.table)
+
+    def __getitem__(self, idx):
+        img_path = self.table.iloc[
+            idx, self.table.columns.get_loc("path")
+        ]
+        img = cv2.imread(img_path)
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        labels = np.array(
+                self.class_to_idx[
+                    self.table.iloc[
+                        idx, self.table.columns.get_loc(self.target_column)
+                    ]
+                ],
+                dtype=np.int64,
+            )
+
+        if self.transform is not None:
+            return self.transform(img), labels
+        return img, labels
+
+    def get_labels(self):
+        return self.table[self.target_names].values
+
+
+class AnnotatedMultitaskDataset(Dataset):
     """
     AnnotatedMultitargetDataset provides a way to do multi-target classification.
 
@@ -201,6 +256,9 @@ class AnnotatedMultitargetDataset(Dataset):
             )
             for target_name in self.target_names
         }
+
+        # import ipdb; ipdb.set_trace()
+
         if self.transform is not None:
             return self.transform(img), labels
         return img, labels
@@ -218,15 +276,23 @@ def get_dataset(data, pipeline):
             data["group_dict"],
             transform=transform,
         )
-    elif data["type"] == "AnnotatedMultitargetDataset":
-        dataset = AnnotatedMultitargetDataset(
+    elif data["type"] == "AnnotatedMultitaskDataset":
+        dataset = AnnotatedMultitaskDataset(
             data["ann_file"],
             data["target_names"],
             data["fold"],
             transform=transform,
         )
+    elif data["type"] == "AnnotatedSingletaskDataset":
+        dataset = AnnotatedSingletaskDataset(
+            data["ann_file"],
+            data["target_column"],
+            data["fold"],
+            transform=transform,
+        )
     else:
         dataset = ImageFolder(data["root"], transform=transform)
+
     if data.get("weighted_sampling", False):
         loader = DataLoader(
             dataset,

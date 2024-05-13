@@ -13,16 +13,9 @@ device = "cuda:0"
 enable_mixed_presicion = True
 enable_gradient_scaler = True
 
-target_names = [
-    "dog_size",
-    "dog_fur",
-    "dog_color",
-    "dog_ear_type",
-    "dog_muzzle_len",
-    "dog_leg_len",
-]
+target_column = "dog_size"
 
-model_path = f"/home/slava/nkb-classification/runs/demo_train5"
+model_path = f"/home/slava/nkb-classification/runs/demo_train6"
 
 experiment = {
     "api_key_path": "/home/slava/nkb-classification/configs/comet_api_key.txt",
@@ -99,9 +92,9 @@ val_pipeline = A.Compose(
 )
 
 train_data = {
-    "type": "AnnotatedMultitargetDataset",
+    "type": "AnnotatedSingleDataset",
     "ann_file": "/home/slava/nkb-classification/jupyters_exps/annotation_high_res_video_split_v2_slava.csv",
-    "target_names": target_names,
+    "target_column": target_column,
     "fold": "train",
     "weighted_sampling": False,
     "shuffle": True,
@@ -111,9 +104,9 @@ train_data = {
 }
 
 val_data = {
-    "type": "AnnotatedMultitargetDataset",
+    "type": "AnnotatedSingleDataset",
     "ann_file": "/home/slava/nkb-classification/jupyters_exps/annotation_high_res_video_split_v2_slava.csv",
-    "target_names": target_names,
+    "target_column": target_column,
     "fold": "val",
     "weighted_sampling": False,
     "shuffle": True,
@@ -123,6 +116,7 @@ val_data = {
 }
 
 model = {
+    "task": "single",
     "model": "unicom ViT-B/32",
     "pretrained": True,
     "backbone_dropout": 0.1,
