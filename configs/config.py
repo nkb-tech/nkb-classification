@@ -123,7 +123,7 @@ val_data = {
 }
 
 model = {
-    "model": "convnext_base",
+    "model": "unicom ViT-B/32",
     "pretrained": True,
     "backbone_dropout": 0.1,
     "classifier_dropout": 0.1,

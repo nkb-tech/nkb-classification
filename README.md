@@ -61,6 +61,13 @@ The dataset is provided as a `csv` table with paths to the images and annotation
 
 Objects with the `-1` fold value are ignored. Target columns are scpicfied in the `config` file by the `target_names` list. The path to the `csv` table is also provided through the `config` file.
 
+## Available backbone models
+
+1. All models from timm library. To get model names run timm.list_models() with optional argument pretrained=True.
+Provide exactly same model name to config.py
+2. All models from unicom library. List them with unicom.available_models().
+To use them, provide "unicom *model_name*" (i.e. "unicom ViT-B/32") in config.py.
+
 ## Run onnx export
 
 To enable export models to onnx or torchscript, run first:

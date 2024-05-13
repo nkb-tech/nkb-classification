@@ -72,30 +72,13 @@ class MultilabelModel(nn.Module):
     def get_emb_model(cfg_model: dict):
         name = cfg_model["model"]
         if name.lower().startswith("unicom"):
-            initial_model, _ = unicom.load(name.split()[1])
-        else:
-            initial_model = timm.create_model(name, pretrained=cfg_model["pretrained"])
+            emb_model, _ = unicom.load(name.split()[1])
+            emb_size = emb_model.feature[-2].out_features
 
-        if name.lower().startswith("unicom"):
-            emb_size = initial_model.feature[-2].out_features
-            emb_model = initial_model
-        if name.startswith(("efficientnet", "mobilenet")):
-            emb_size = initial_model.classifier.in_features
-            emb_model = nn.Sequential(*[*initial_model.children()][:-1], nn.Flatten())
-        elif name.startswith("convnext"):
-            emb_size = initial_model.head.in_features
-            new_head = nn.Sequential(
-                *[*[*initial_model.children()][-1].children()][:-2]
-            )
-            emb_model = nn.Sequential(*[*initial_model.children()][:-1], new_head)
-        elif name.startswith("resnet"):
-            emb_size = initial_model.fc.in_features
-            emb_model = nn.Sequential(*[*initial_model.children()][:-1], nn.Flatten())
-        elif name.startswith("vit"):
-            emb_size = (
-                initial_model.patch_embed.num_patches * initial_model.head.in_features
-            )
-            emb_model = nn.Sequential(*[*initial_model.children()][:-2], nn.Flatten())
+        else:
+            emb_model = timm.create_model(name, pretrained=cfg_model["pretrained"], num_classes=0)
+            emb_size = emb_model.num_features
+
         return emb_model, emb_size
 
 
