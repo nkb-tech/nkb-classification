@@ -1,4 +1,5 @@
 import argparse
+import json
 from collections import OrderedDict, namedtuple
 from pathlib import Path
 from typing import List, Optional, Union
@@ -43,9 +44,9 @@ class TRTModule(torch.nn.Module):
             meta_len = int.from_bytes(
                 f.read(4), byteorder="little"
             )  # read metadata length
-            # metadata = json.loads(
-            #     f.read(meta_len).decode("utf-8")
-            # )  # read metadata
+            metadata = json.loads(
+                f.read(meta_len).decode("utf-8")
+            )  # read metadata
             model = runtime.deserialize_cuda_engine(
                 f.read()
             )  # read engine

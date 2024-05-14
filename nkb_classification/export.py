@@ -225,6 +225,10 @@ def main(args):
         onnx.save(onnx_model_optimized, save_path)
 
     if jit_fmt:
+        save_path = os.path.join(
+            args.save_path,
+            os.path.basename(args.weights.replace(".pth", ".torchscript")),
+        )
         jit_model = torch.jit.trace(
             model,
             example_inputs=fake_input,
@@ -255,9 +259,12 @@ def main(args):
 
         builder = trt.Builder(logger)
         config = builder.create_builder_config()
-        config.max_workspace_size = torch.cuda.get_device_properties(
-            device
-        ).total_memory
+        config.set_memory_pool_limit(
+            trt.MemoryPoolType.WORKSPACE,
+            int(0.9 *torch.cuda.get_device_properties(
+                device
+            ).total_memory)
+        )
 
         flag = 1 << int(
             trt.NetworkDefinitionCreationFlag.EXPLICIT_BATCH
@@ -325,17 +332,17 @@ def main(args):
         torch.cuda.empty_cache()
 
         # Write file
-        with builder.build_engine(network, config) as engine, open(
+        with builder.build_serialized_network(network, config) as engine, open(
             save_path, "wb"
         ) as t:
-            # Metadata
+            # # Metadata
             meta = json.dumps(metadata)
             t.write(
                 len(meta).to_bytes(4, byteorder="little", signed=True)
             )
             t.write(meta.encode())
             # Model
-            t.write(engine.serialize())
+            t.write(engine)
 
     print(f"{args.to} export success, saved as {save_path}")
 
