@@ -161,9 +161,9 @@ class MultitaskClassifier(nn.Module):
 
 
 def get_model(cfg_model, classes, device="cpu", compile: bool = True):
-    if cfg_model.task == 'single':
+    if cfg_model['task'] == 'single':
         model = SingletaskClassifier(cfg_model, classes)
-    elif cfg_model.task == 'multi':
+    elif cfg_model['task'] == 'multi':
         model = MultitaskClassifier(cfg_model, classes)
 
     model.to(device)
