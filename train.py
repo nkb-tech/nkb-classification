@@ -59,16 +59,18 @@ def train_epoch(
             enabled=cfg.enable_mixed_presicion,
         ):
             preds = model(img)
-            loss = 0
+            # loss = 0
 
-            for target_name in target_names:
-                target_loss = criterion(
-                    preds[target_name], target[target_name].to(device)
-                )
-                train_running_loss[target_name].append(
-                    target_loss.item()
-                )
-                loss += target_loss
+            # for target_name in target_names:
+            #     target_loss = criterion(
+            #         preds[target_name], target[target_name].to(device)
+            #     )
+            #     train_running_loss[target_name].append(
+            #         target_loss.item()
+            #     )
+            #     loss += target_loss
+
+            loss, train_running_loss = criterion(preds, target)
 
         loss_item = loss.item()
 

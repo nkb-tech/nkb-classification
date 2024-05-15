@@ -13,6 +13,8 @@ device = "cuda:0"
 enable_mixed_presicion = True
 enable_gradient_scaler = True
 
+task = "multi"
+
 target_names = [
     "dog_size",
     "dog_fur",
@@ -123,7 +125,7 @@ val_data = {
 }
 
 model = {
-    "task": "multi",
+    "task": task,
     "model": "unicom ViT-B/32",
     "pretrained": True,
     "backbone_dropout": 0.1,
@@ -147,4 +149,7 @@ lr_policy = {
     "gamma": 0.1,
 }
 
-criterion = {"type": "FocalLoss"}
+criterion = {
+    "task": task,
+    "type": "CrossEntropyLoss"
+}
