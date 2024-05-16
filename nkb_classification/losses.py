@@ -112,7 +112,8 @@ class MultitaskLoss:
     def __call__(self,
                  pred: dict,
                  true: dict,
-                 should_return_running_loss: bool = True):
+                 running_loss: defaultdict = None,
+                 should_return_separate_loss: bool = True):
         """
         Computes overall loss over tasks.
 
@@ -123,27 +124,33 @@ class MultitaskLoss:
         Parameters
         ----------
         pred : dict
-            Model predicted labels for each task
+            Model predicted labels for each task.
         true : dict
-            Ground true labels for each task
-        should_return_running_loss : bool
-            Whether to return a running loss value (separate loss for each task)
+            Ground true labels for each task.
+        should_return_separate_loss : bool
+            Whether to return separate loss for each task.
         """
         assert pred.keys() == true.keys()
         loss = 0
 
-        running_loss = defaultdict(list)
+        # separate_loss = defaultdict(list)
 
         for target_name in pred.keys():
             target_loss = self.criterion(
                 pred[target_name], true[target_name].to(self.device)
             )
-            running_loss[target_name].append(
-                target_loss.item()
-            )
+            if running_loss is not None:
+                running_loss[target_name].append(
+                    target_loss.item()
+                )
+            # separate_loss[target_name].append(
+            #     target_loss.item()
+            # )
             loss += target_loss
 
-        if should_return_running_loss:
+        # if should_return_separate_loss:
+        #     return loss, separate_loss
+        if running_loss is not None:
             return loss, running_loss
         else:
             return loss
@@ -153,8 +160,8 @@ def get_loss(cfg_loss, device):
         weight = None
         if "weight" in cfg_loss:
             weight = torch.tensor(cfg_loss["weight"], dtype=torch.float)
-        loss = nn.CrossEntropyLoss(weight).to(device)
-        # return nn.CrossEntropyLoss(weight).to(device)
+        # loss = nn.CrossEntropyLoss(weight).to(device)
+        return nn.CrossEntropyLoss(weight).to(device)
     elif cfg_loss["type"] == "FocalLoss":
         alpha = None
         if "alpha" in cfg_loss:
@@ -162,8 +169,8 @@ def get_loss(cfg_loss, device):
         gamma = DEFAULT_FOCAL_GAMMA
         if "gamma" in cfg_loss:
             gamma = cfg_loss["gamma"]
-        loss = FocalLoss(alpha, gamma).to(device)
-        # return FocalLoss(alpha, gamma).to(device)
+        # loss = FocalLoss(alpha, gamma).to(device)
+        return FocalLoss(alpha, gamma).to(device)
     else:
         raise NotImplementedError(
             f'Unknown loss type in config: {cfg_loss["type"]}'
