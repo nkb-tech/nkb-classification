@@ -4,7 +4,7 @@ import albumentations as A
 import cv2
 from albumentations.pytorch import ToTensorV2
 
-show_full_current_loss_in_terminal = True
+show_full_current_loss_in_terminal = False
 
 compile = False  # Is not working correctly yet, so set to False
 log_gradients = True

@@ -25,6 +25,111 @@ from nkb_classification.utils import (
 )
 
 
+class TrainPbar(tqdm):
+    def __init__(
+            self,
+            train_loader,
+            leave,
+            desc,
+            cfg):
+        super().__init__(train_loader, leave=leave, desc=desc)
+        self.cfg = cfg
+
+    def update_loss(self, loss):
+        if (self.cfg.task == 'multi') \
+            and self.cfg.show_full_current_loss_in_terminal:
+            self.set_postfix_str(
+                ", ".join(
+                    f"loss {key}: {value:.4f}"
+                    for key, value in loss.items()
+                )
+            )
+        elif self.cfg.task == 'multi':
+            self.set_postfix_str(f"Loss: {loss['loss'].item():.4f}")
+        else:
+            self.set_postfix_str(f"Loss: {loss.item():.4f}")
+
+class EpochLogger:
+    __slots__ = \
+        'running_loss', \
+        'confidences', \
+        'predictions', \
+        'ground_truth'
+
+    def __init__(self, cfg):
+
+        assert cfg.task in ('single', 'multi')
+
+        if cfg.task == 'multi':
+            self.running_loss = defaultdict(list)
+            self.confidences = defaultdict(list)
+            self.predictions = defaultdict(list)
+            self.ground_truth = defaultdict(list)
+        elif cfg.task == 'single':
+            self.running_loss = []
+            self.confidences = []
+            self.predictions = []
+            self.ground_truth = []
+
+    def update_logs(self, pred, true, loss):
+        assert type(pred) == type(true)
+        if isinstance(pred, dict):
+            assert pred.keys() == true.keys()
+            for target_name in pred.keys():
+                self.ground_truth[target_name].extend(
+                    true[target_name].cpu().numpy().tolist()
+                )
+                self.confidences[target_name].extend(
+                    pred[target_name]
+                    .softmax(dim=-1, dtype=torch.float32)
+                    .detach()
+                    .cpu()
+                    .numpy()
+                    .tolist()
+                )
+                self.predictions[target_name].extend(
+                    pred[target_name]
+                    .argmax(dim=-1)
+                    .detach()
+                    .cpu()
+                    .numpy()
+                    .tolist()
+                )
+                self.running_loss[target_name].append(
+                        loss[target_name].item()
+                    )
+        else:
+            self.ground_truth.extend(
+                true.cpu().numpy().tolist()
+            )
+            self.confidences.extend(
+                pred
+                .softmax(dim=-1, dtype=torch.float32)
+                .detach()
+                .cpu()
+                .numpy()
+                .tolist()
+            )
+            self.predictions.extend(
+                pred[target_name]
+                .argmax(dim=-1)
+                .detach()
+                .cpu()
+                .numpy()
+                .tolist()
+            )
+            self.running_loss.append(
+                loss.item()
+            )
+
+    def getresults(self):
+        return {
+            "running_loss": self.running_loss,
+            "confidences": self.confidences,
+            "predictions": self.predictions,
+            "ground_truth": self.ground_truth,
+        }
+
 def train_epoch(
     model,
     train_loader,
@@ -36,17 +141,22 @@ def train_epoch(
     device,
     cfg,
 ):
-    train_running_loss = defaultdict(list)
-    train_confidences = defaultdict(list)
-    train_predictions = defaultdict(list)
-    train_ground_truth = defaultdict(list)
+    # train_running_loss = defaultdict(list)
+    # train_confidences = defaultdict(list)
+    # train_predictions = defaultdict(list)
+    # train_ground_truth = defaultdict(list)
+
+    epoch_logger = EpochLogger(cfg)
+
+    # ------------------------- Same -------------------------------
 
     model.train()
 
     if cfg.log_gradients:
         metrics_grad_log = defaultdict(list)
 
-    pbar = tqdm(train_loader, leave=False, desc="Training")
+    # pbar = tqdm(train_loader, leave=False, desc="Training")
+    pbar = TrainPbar(train_loader, leave=False, desc="Training", cfg=cfg)
 
     batch_to_log = None
     for img, target in pbar:
@@ -59,57 +169,65 @@ def train_epoch(
             enabled=cfg.enable_mixed_presicion,
         ):
             preds = model(img)
-            loss = 0
+    # ----------------------------------------------------------------
+            # loss = 0
 
-            for target_name in target_names:
-                target_loss = criterion(
-                    preds[target_name], target[target_name].to(device)
-                )
-                train_running_loss[target_name].append(
-                    target_loss.item()
-                )
-                loss += target_loss
+            # for target_name in target_names:
+            #     target_loss = criterion(
+            #         preds[target_name], target[target_name].to(device)
+            #     )
+            #     train_running_loss[target_name].append(
+            #         target_loss.item()
+            #     )
+            #     loss += target_loss
 
-            # loss, train_running_loss = criterion(preds, target)
+            loss = criterion(preds, target)
 
-        train_running_loss["loss"].append(loss_item)
+        # train_running_loss["loss"].append(loss_item)
 
-        loss_item = loss.item()
+        # loss_item = loss.item()
 
-        if cfg.show_full_current_loss_in_terminal:
-            pbar.set_postfix_str(
-                ", ".join(
-                    f"loss {key}: {value[-1]:.4f}"
-                    for key, value in train_running_loss.items()
-                )
-            )
+        # if cfg.show_full_current_loss_in_terminal:
+        #     pbar.set_postfix_str(
+        #         ", ".join(
+        #             f"loss {key}: {value[-1]:.4f}"
+        #             for key, value in train_running_loss.items()
+        #         )
+        #     )
+        # else:
+        #     pbar.set_postfix_str(f"Loss: {loss_item:.4f}")
+
+        pbar.update_loss(loss)
+
+        if isinstance(loss, dict):
+            scaler.scale(loss['loss']).backward()
         else:
-            pbar.set_postfix_str(f"Loss: {loss_item:.4f}")
-
-        scaler.scale(loss).backward()
+            scaler.scale(loss).backward()
         scaler.step(optimizer)
         scaler.update()
 
-        for target_name in target_names:
-            train_ground_truth[target_name].extend(
-                target[target_name].cpu().numpy().tolist()
-            )
-            train_confidences[target_name].extend(
-                preds[target_name]
-                .softmax(dim=-1, dtype=torch.float32)
-                .detach()
-                .cpu()
-                .numpy()
-                .tolist()
-            )
-            train_predictions[target_name].extend(
-                preds[target_name]
-                .argmax(dim=-1)
-                .detach()
-                .cpu()
-                .numpy()
-                .tolist()
-            )
+        epoch_logger.update_logs(preds, target, loss)
+
+        # for target_name in target_names:
+        #     train_ground_truth[target_name].extend(
+        #         target[target_name].cpu().numpy().tolist()
+        #     )
+        #     train_confidences[target_name].extend(
+        #         preds[target_name]
+        #         .softmax(dim=-1, dtype=torch.float32)
+        #         .detach()
+        #         .cpu()
+        #         .numpy()
+        #         .tolist()
+        #     )
+        #     train_predictions[target_name].extend(
+        #         preds[target_name]
+        #         .argmax(dim=-1)
+        #         .detach()
+        #         .cpu()
+        #         .numpy()
+        #         .tolist()
+        #     )
 
         if cfg.log_gradients:
             total_grad = 0
@@ -128,13 +246,15 @@ def train_epoch(
     if scheduler is not None:
         scheduler.step()
 
-    results = {
-        "running_loss": train_running_loss,
-        "confidences": train_confidences,
-        "predictions": train_predictions,
-        "ground_truth": train_ground_truth,
-        "images": batch_to_log,
-    }
+    # results = {
+    #     "running_loss": train_running_loss,
+    #     "confidences": train_confidences,
+    #     "predictions": train_predictions,
+    #     "ground_truth": train_ground_truth,
+    #     "images": batch_to_log,
+    # }
+    results = epoch_logger.getresults()
+    results['images'] = batch_to_log
 
     if cfg.log_gradients:
         results["metrics_grad_log"] = metrics_grad_log
@@ -144,10 +264,12 @@ def train_epoch(
 
 @torch.no_grad()
 def val_epoch(model, val_loader, criterion, target_names, device, cfg):
-    val_confidences = defaultdict(list)
-    val_predictions = defaultdict(list)
-    val_ground_truth = defaultdict(list)
-    val_running_loss = defaultdict(list)
+    # val_confidences = defaultdict(list)
+    # val_predictions = defaultdict(list)
+    # val_ground_truth = defaultdict(list)
+    # val_running_loss = defaultdict(list)
+
+    epoch_logger = EpochLogger(cfg)
 
     model.eval()
 
@@ -160,41 +282,47 @@ def val_epoch(model, val_loader, criterion, target_names, device, cfg):
             enabled=cfg.enable_mixed_presicion,
         ):
             preds = model(img)
-            loss = 0
-            for target_name in target_names:
-                target_loss = criterion(
-                    preds[target_name], target[target_name].to(device)
-                ).item()
-                val_running_loss[target_name].append(target_loss)
-                loss += target_loss
+            loss = criterion(preds, target)
 
-        val_running_loss["loss"].append(loss)
+            # loss = 0
+            # for target_name in target_names:
+            #     target_loss = criterion(
+            #         preds[target_name], target[target_name].to(device)
+            #     ).item()
+            #     val_running_loss[target_name].append(target_loss)
+            #     loss += target_loss
 
-        for target_name in target_names:
-            val_ground_truth[target_name].extend(
-                target[target_name].cpu().numpy().tolist()
-            )
-            val_confidences[target_name].extend(
-                preds[target_name]
-                .softmax(dim=-1, dtype=torch.float32)
-                .cpu()
-                .numpy()
-                .tolist()
-            )
-            val_predictions[target_name].extend(
-                preds[target_name].argmax(dim=-1).cpu().numpy().tolist()
-            )
+        epoch_logger.update_logs(preds, target, loss)
+
+        # val_running_loss["loss"].append(loss)
+
+        # for target_name in target_names:
+        #     val_ground_truth[target_name].extend(
+        #         target[target_name].cpu().numpy().tolist()
+        #     )
+        #     val_confidences[target_name].extend(
+        #         preds[target_name]
+        #         .softmax(dim=-1, dtype=torch.float32)
+        #         .cpu()
+        #         .numpy()
+        #         .tolist()
+        #     )
+        #     val_predictions[target_name].extend(
+        #         preds[target_name].argmax(dim=-1).cpu().numpy().tolist()
+        #     )
 
         if batch_to_log is None:
             batch_to_log = img.to("cpu")
 
-    results = {
-        "running_loss": val_running_loss,
-        "confidences": val_confidences,
-        "predictions": val_predictions,
-        "ground_truth": val_ground_truth,
-        "images": batch_to_log,
-    }
+    # results = {
+    #     "running_loss": val_running_loss,
+    #     "confidences": val_confidences,
+    #     "predictions": val_predictions,
+    #     "ground_truth": val_ground_truth,
+    #     "images": batch_to_log,
+    # }
+    results = epoch_logger.getresults()
+    results['images'] = batch_to_log
 
     return results
 

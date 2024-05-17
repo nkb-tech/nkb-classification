@@ -97,7 +97,27 @@ class FocalLoss(nn.Module):
 
         return loss
 
-class MultitaskLoss:
+# class MultitaskLoss:
+#     def __init__(self, loss):
+#         self.loss = loss
+#         self.iteration = -1
+
+#     def backward(self):
+#         self.loss['loss'].backward()
+
+#     def item(self):
+#         return self.loss['loss'].item()
+
+#     def __iter__(self):
+#         return self
+
+#     def __next__(self):
+#         self.iteration += 1
+#         if self.iteration < len(self.loss):
+#             return self.loss.values()[self.iteration]
+#         raise StopIteration
+
+class MultitasCriterion:
     """
     Wrapper for any loss function, which
     allows it to work with a multi-task classification.
@@ -111,9 +131,9 @@ class MultitaskLoss:
 
     def __call__(self,
                  pred: dict,
-                 true: dict,
-                 running_loss: defaultdict = None,
-                 should_return_separate_loss: bool = True):
+                 true: dict):
+                #  running_loss: defaultdict = None,
+                #  should_return_separate_loss: bool = True):
         """
         Computes overall loss over tasks.
 
@@ -133,35 +153,36 @@ class MultitaskLoss:
         assert pred.keys() == true.keys()
         loss = 0
 
-        # separate_loss = defaultdict(list)
+        separate_loss = defaultdict()
 
         for target_name in pred.keys():
             target_loss = self.criterion(
                 pred[target_name], true[target_name].to(self.device)
             )
-            if running_loss is not None:
-                running_loss[target_name].append(
-                    target_loss.item()
-                )
-            # separate_loss[target_name].append(
-            #     target_loss.item()
-            # )
+            # if running_loss is not None:
+                # running_loss[target_name].append(
+                    # target_loss.item()
+                # )
+            separate_loss[target_name] = target_loss#.item()
+
             loss += target_loss
 
         # if should_return_separate_loss:
         #     return loss, separate_loss
-        if running_loss is not None:
-            return loss, running_loss
-        else:
-            return loss
+        separate_loss['loss'] = loss
+        return separate_loss
+        # if running_loss is not None:
+        #     return loss, running_loss
+        # else:
+        #     return loss
 
 def get_loss(cfg_loss, device):
     if cfg_loss["type"] == "CrossEntropyLoss":
         weight = None
         if "weight" in cfg_loss:
             weight = torch.tensor(cfg_loss["weight"], dtype=torch.float)
-        # loss = nn.CrossEntropyLoss(weight).to(device)
-        return nn.CrossEntropyLoss(weight).to(device)
+        loss = nn.CrossEntropyLoss(weight).to(device)
+        # return nn.CrossEntropyLoss(weight).to(device)
     elif cfg_loss["type"] == "FocalLoss":
         alpha = None
         if "alpha" in cfg_loss:
@@ -169,14 +190,14 @@ def get_loss(cfg_loss, device):
         gamma = DEFAULT_FOCAL_GAMMA
         if "gamma" in cfg_loss:
             gamma = cfg_loss["gamma"]
-        # loss = FocalLoss(alpha, gamma).to(device)
-        return FocalLoss(alpha, gamma).to(device)
+        loss = FocalLoss(alpha, gamma).to(device)
+        # return FocalLoss(alpha, gamma).to(device)
     else:
         raise NotImplementedError(
             f'Unknown loss type in config: {cfg_loss["type"]}'
         )
 
     if cfg_loss['task'] == 'multi':
-        return MultitaskLoss(loss, device)
+        return MultitasCriterion(loss, device)
     else:
         return loss
