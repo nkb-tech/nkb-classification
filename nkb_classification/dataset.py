@@ -269,6 +269,8 @@ class AnnotatedMultitaskDataset(Dataset):
 
 def get_dataset(data, pipeline):
     transform = Transforms(pipeline)
+    # TODO match case
+    # kwargs to datasets
     if data["type"] == "GroupsDataset":
         dataset = GroupsDataset(
             data["root"],
@@ -290,10 +292,15 @@ def get_dataset(data, pipeline):
             data["fold"],
             transform=transform,
         )
-    else:
+    elif data["type"] == "ImageFolder":
         dataset = ImageFolder(data["root"], transform=transform)
 
+    else:
+        raise ValueError("Dataset type must be one of: GroupsDataset, AnnotatedSingletaskDataset, AnnotatedMultitaskDataset, ImageFolder")
+
     if data.get("weighted_sampling", False):
+        # TODO test this
+        # get_labels
         loader = DataLoader(
             dataset,
             batch_size=data["batch_size"],

@@ -97,10 +97,10 @@ class MultitaskClassifier(nn.Module):
         self.emb_model, self.emb_size = self.get_emb_model(cfg_model)
         self.set_dropout(self.emb_model, cfg_model["backbone_dropout"])
 
-        self.classifiers = nn.ModuleDict()
+        self.classifier = nn.ModuleDict()
 
         for target_name in classes:
-            self.classifiers[target_name] = nn.Sequential(
+            self.classifier[target_name] = nn.Sequential(
                 nn.Dropout(cfg_model["classifier_dropout"]),
                 nn.Linear(self.emb_size, len(classes[target_name])),
             )
@@ -113,11 +113,11 @@ class MultitaskClassifier(nn.Module):
         emb = self.emb_model(x)
         return {
             task_name: classifier(emb)
-            for task_name, classifier in self.classifiers.items()
+            for task_name, classifier in self.classifier.items()
         }
 
     def initialize_classifiers(self, strategy="kaiming_normal_"):
-        for classifier in self.classifiers.values():
+        for classifier in self.classifier.values():
             for param in classifier.parameters():
                 if param.ndim >= 2:
                     if strategy == "kaiming_normal_":

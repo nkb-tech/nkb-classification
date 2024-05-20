@@ -13,6 +13,8 @@ device = "cuda:0"
 enable_mixed_presicion = True
 enable_gradient_scaler = True
 
+task = "single"
+
 target_column = "dog_size"
 
 model_path = f"/home/slava/nkb-classification/runs/demo_train6"
@@ -92,7 +94,7 @@ val_pipeline = A.Compose(
 )
 
 train_data = {
-    "type": "AnnotatedSingleDataset",
+    "type": "AnnotatedSingletaskDataset",
     "ann_file": "/home/slava/nkb-classification/jupyters_exps/annotation_high_res_video_split_v2_slava.csv",
     "target_column": target_column,
     "fold": "train",
@@ -104,7 +106,7 @@ train_data = {
 }
 
 val_data = {
-    "type": "AnnotatedSingleDataset",
+    "type": "AnnotatedSingletaskDataset",
     "ann_file": "/home/slava/nkb-classification/jupyters_exps/annotation_high_res_video_split_v2_slava.csv",
     "target_column": target_column,
     "fold": "val",
@@ -116,7 +118,7 @@ val_data = {
 }
 
 model = {
-    "task": "single",
+    "task": task,
     "model": "unicom ViT-B/32",
     "pretrained": True,
     "backbone_dropout": 0.1,
@@ -140,4 +142,6 @@ lr_policy = {
     "gamma": 0.1,
 }
 
-criterion = {"type": "FocalLoss"}
+criterion = {
+    "task": task,
+    "type": "FocalLoss"}

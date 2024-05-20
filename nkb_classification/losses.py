@@ -198,6 +198,7 @@ def get_loss(cfg_loss, device):
         )
 
     if cfg_loss['task'] == 'multi':
+        # TODO fix typo
         return MultitasCriterion(loss, device)
     else:
         return loss
