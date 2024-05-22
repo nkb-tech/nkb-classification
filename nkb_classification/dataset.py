@@ -292,11 +292,8 @@ def get_dataset(data, pipeline):
             data["fold"],
             transform=transform,
         )
-    elif data["type"] == "ImageFolder":
-        dataset = ImageFolder(data["root"], transform=transform)
-
     else:
-        raise ValueError("Dataset type must be one of: GroupsDataset, AnnotatedSingletaskDataset, AnnotatedMultitaskDataset, ImageFolder")
+        dataset = ImageFolder(data["root"], transform=transform)
 
     if data.get("weighted_sampling", False):
         # TODO test this

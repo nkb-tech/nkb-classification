@@ -68,7 +68,17 @@ class TrainLogger:
         self.cfg = cfg
         self.experiment = experiment
 
-        if cfg.task == 'multi':
+        if cfg.task == 'single':
+            self.epoch_running_loss = []
+            self.epoch_confidences = []
+            self.epoch_predictions = []
+            self.epoch_ground_truth = []
+
+            self.target_names = None
+            # import ipdb; ipdb.set_trace()
+            self.label_names = list(class_to_idx.keys())
+
+        elif cfg.task == 'multi':
             self.epoch_running_loss = defaultdict(list)
             self.epoch_confidences = defaultdict(list)
             self.epoch_predictions = defaultdict(list)
@@ -80,14 +90,11 @@ class TrainLogger:
                 target_name: [*class_to_idx[target_name].keys()]
                 for target_name in self.target_names
             }
-        elif cfg.task == 'single':
-            self.epoch_running_loss = []
-            self.epoch_confidences = []
-            self.epoch_predictions = []
-            self.epoch_ground_truth = []
 
     def log_iter(self, pred, true, loss):
         assert type(pred) == type(true)
+
+        # Multi-task case
         if isinstance(pred, dict):
             assert pred.keys() == true.keys()
             for target_name in pred.keys():
@@ -112,6 +119,9 @@ class TrainLogger:
                 )
                 self.epoch_running_loss[target_name].append(
                         loss[target_name].item()
+                    )
+            self.epoch_running_loss['loss'].append(
+                        loss['loss'].item()
                     )
         else:
             self.epoch_ground_truth.extend(
@@ -164,7 +174,6 @@ class TrainLogger:
                 train_results['metrics'],
                 "Train",
             )
-
 
             log_metrics(
                 self.experiment,
@@ -219,7 +228,7 @@ def train_epoch(
 
     batch_to_log = None
     for img, target in pbar:
-        target = target.to(device)
+        # target = target.to(device)
         img = img.to(device)
         optimizer.zero_grad()
 
@@ -239,7 +248,10 @@ def train_epoch(
             #         target_loss.item()
             #     )
             #     loss += target_loss
+            if isinstance(target, torch.Tensor):
+                target = target.to(device)
 
+            # import ipdb; ipdb.set_trace()
             loss = criterion(preds, target)
 
         # train_running_loss["loss"].append(loss_item)
@@ -343,13 +355,15 @@ def val_epoch(
     batch_to_log = None
     for img, target in tqdm(val_loader, leave=False, desc="Evaluating"):
         img = img.to(device)
-        target = target.to(device)
+        # target = target.to(device)
         with torch.autocast(
             device_type="cuda",
             dtype=torch.float16,
             enabled=cfg.enable_mixed_presicion,
         ):
             preds = model(img)
+            if isinstance(target, torch.Tensor):
+                target = target.to(device)
             loss = criterion(preds, target)
 
             # loss = 0
@@ -447,6 +461,11 @@ def train(
         train_results['metrics'] = compute_metrics(cfg, train_results)
         val_results['metrics'] = compute_metrics(cfg, val_results)
         epoch_val_acc = val_results['metrics']["epoch_acc"]
+        train_logger.log_epoch(
+            epoch,
+            train_results,
+            val_results,
+        )
         # epoch_val_acc = None
         # if experiment is not None:  # log metrics
         #     log_images(

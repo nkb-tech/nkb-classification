@@ -38,7 +38,10 @@ def compute_metrics(
         epoch_results: dict,
     ):
     if cfg.task == 'single':
-        return compute_targetwise_metrics(epoch_results)
+        metrics = compute_targetwise_metrics(epoch_results)
+
+        metrics["loss"] = epoch_results["running_loss"]
+        return metrics
     elif cfg.task == 'multi':
         target_names = cfg.target_names
         metrics = {
@@ -62,6 +65,8 @@ def compute_metrics(
 def log_targetwise_metrics(
     experiment, target_name, label_names, epoch, metrics, fold="Train"
 ):
+    if target_name is None:
+        target_name = ""
     acc = metrics["epoch_acc"]
     roc_auc = metrics["epoch_roc_auc"]
     epoch_loss = metrics["epoch_loss"]
@@ -69,7 +74,7 @@ def log_targetwise_metrics(
     # print(f'{target_name} Epoch {epoch} {fold.lower()} roc_auc {roc_auc:.4f}')
     # print(f'{target_name} Epoch {epoch} {fold.lower()} balanced accuracy {acc:.4f}')
     experiment.log_metric(
-        f"{target_name} Average epoch {fold} loss",
+        f"{target_name} Average epoch {fold} loss".lstrip(),
         epoch_loss,
         epoch=epoch,
         step=epoch,
@@ -77,26 +82,26 @@ def log_targetwise_metrics(
     if n_classes > 2:
         for roc_auc, class_name in zip(roc_auc, label_names):
             experiment.log_metric(
-                f"{target_name} {fold} ROC AUC, {class_name}",
+                f"{target_name} {fold} ROC AUC, {class_name}".lstrip(),
                 roc_auc,
                 epoch=epoch,
                 step=epoch,
             )
         experiment.log_metric(
-            f"{target_name} {fold} ROC AUC",
+            f"{target_name} {fold} ROC AUC".lstrip(),
             np.mean(roc_auc),
             epoch=epoch,
             step=epoch,
         )
     else:
         experiment.log_metric(
-            f"{target_name} {fold} ROC AUC",
+            f"{target_name} {fold} ROC AUC".lstrip(),
             roc_auc,
             epoch=epoch,
             step=epoch,
         )
     experiment.log_metric(
-        f"{target_name} {fold} balanced accuracy",
+        f"{target_name} {fold} balanced accuracy".lstrip(),
         acc,
         epoch=epoch,
         step=epoch,
@@ -104,17 +109,33 @@ def log_targetwise_metrics(
 
 
 def log_metrics(
-    experiment, target_names, label_names, epoch, metrics, fold="Train"
+    experiment,
+    target_names,
+    label_names,
+    epoch,
+    metrics,
+    fold="Train",
 ):
-    for target_name in target_names:
+    if target_names is None:
         log_targetwise_metrics(
             experiment,
-            target_name,
-            label_names[target_name],
+            None,
+            label_names,
             epoch,
-            metrics[target_name],
+            metrics,
             fold,
         )
+
+    else:
+        for target_name in target_names:
+            log_targetwise_metrics(
+                experiment,
+                target_name,
+                label_names[target_name],
+                epoch,
+                metrics[target_name],
+                fold,
+            )
     experiment.log_metric(
         f"{fold} loss",
         np.mean(metrics["loss"]),
@@ -137,12 +158,22 @@ def log_confusion_matrices(
     results,
     fold="Validation",
 ):
-    for target_name in target_names:
+    if target_names is None:
         experiment.log_confusion_matrix(
-            results["ground_truth"][target_name],
-            results["predictions"][target_name],
-            labels=label_names[target_name],
-            title=f"{fold} {target_name} confusion matrix",
-            file_name=f"{fold}-{target_name}-confusion-matrix.json",
+            results["ground_truth"],
+            results["predictions"],
+            labels=label_names,
+            title=f"{fold} confusion matrix",
+            file_name=f"{fold}-confusion-matrix.json",
             epoch=epoch,
         )
+    else:
+        for target_name in target_names:
+            experiment.log_confusion_matrix(
+                results["ground_truth"][target_name],
+                results["predictions"][target_name],
+                labels=label_names[target_name],
+                title=f"{fold} {target_name} confusion matrix",
+                file_name=f"{fold}-{target_name}-confusion-matrix.json",
+                epoch=epoch,
+            )
