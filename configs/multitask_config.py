@@ -24,10 +24,10 @@ target_names = [
     "dog_leg_len",
 ]
 
-model_path = f"/home/slava/nkb-classification/runs/demo_train5"
+model_path = f"runs/demo_train_8"
 
 experiment = {
-    "api_key_path": "/home/slava/nkb-classification/configs/comet_api_key.txt",
+    "api_key_path": "configs/comet_api_key.txt",
     "project_name": "nkb-classification",
     "workspace": "viacheslavm21",
     "auto_metric_logging": False,
@@ -102,7 +102,7 @@ val_pipeline = A.Compose(
 
 train_data = {
     "type": "AnnotatedMultitaskDataset",
-    "ann_file": "/home/slava/nkb-classification/jupyters_exps/annotation_high_res_video_split_v2_slava.csv",
+    "annotations_file": "/home/slava/nkb-classification/jupyters_exps/annotation_high_res_video_split_v2_slava.csv",
     "target_names": target_names,
     "fold": "train",
     "weighted_sampling": False,
@@ -114,7 +114,7 @@ train_data = {
 
 val_data = {
     "type": "AnnotatedMultitaskDataset",
-    "ann_file": "/home/slava/nkb-classification/jupyters_exps/annotation_high_res_video_split_v2_slava.csv",
+    "annotations_file": "/home/slava/nkb-classification/jupyters_exps/annotation_high_res_video_split_v2_slava.csv",
     "target_names": target_names,
     "fold": "val",
     "weighted_sampling": False,

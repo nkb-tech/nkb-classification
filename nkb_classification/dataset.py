@@ -1,16 +1,79 @@
 import pickle as pkl
 from pathlib import Path, PosixPath
+from typing import Callable
 
 import albumentations as A
 import cv2
 import numpy as np
 import pandas as pd
 import torch
+import torchvision
 from PIL import Image
 from torch.utils.data import DataLoader, Dataset
-from torchsampler import ImbalancedDatasetSampler
 from torchvision.datasets import ImageFolder
 
+
+class ImbalancedDatasetSampler(torch.utils.data.sampler.Sampler):
+    """Samples elements randomly from a given list of indices for imbalanced dataset
+
+    Arguments:
+        indices: a list of indices
+        num_samples: number of samples to draw
+        callback_get_label: a callback-like function which takes two arguments - dataset and index
+    """
+
+    def __init__(
+        self,
+        dataset,
+        labels: list = None,
+        indices: list = None,
+        num_samples: int = None,
+        callback_get_label: Callable = None,
+    ):
+        # if indices is not provided, all elements in the dataset will be considered
+        self.indices = list(range(len(dataset))) if indices is None else indices
+
+        # define custom callback
+        self.callback_get_label = callback_get_label
+
+        # if num_samples is not provided, draw `len(indices)` samples in each iteration
+        self.num_samples = len(self.indices) if num_samples is None else num_samples
+
+        # distribution of classes in the dataset
+        df = pd.DataFrame()
+        df["label"] = self._get_labels(dataset) if labels is None else labels
+        df.index = self.indices
+        df = df.sort_index()
+
+        label_to_count = df["label"].value_counts()
+
+        weights = 1.0 / label_to_count[df["label"]]
+
+        self.weights = torch.DoubleTensor(weights.to_list())
+
+    def _get_labels(self, dataset):
+        if self.callback_get_label:
+            return self.callback_get_label(dataset)
+        elif isinstance(dataset, torch.utils.data.TensorDataset):
+            return dataset.tensors[1]
+        elif isinstance(dataset, torchvision.datasets.MNIST):
+            return dataset.train_labels.tolist()
+        elif isinstance(dataset, torchvision.datasets.ImageFolder):
+            return [x[1] for x in dataset.imgs]
+        elif isinstance(dataset, torchvision.datasets.DatasetFolder):
+            return dataset.samples[:][1]
+        elif isinstance(dataset, torch.utils.data.Subset):
+            return dataset.dataset.imgs[:][1]
+        elif isinstance(dataset, torch.utils.data.Dataset):
+            return dataset.get_labels()
+        else:
+            raise NotImplementedError
+
+    def __iter__(self):
+        return (self.indices[i] for i in torch.multinomial(self.weights, self.num_samples, replacement=True))
+
+    def __len__(self):
+        return self.num_samples
 
 class Transforms:
     def __init__(
@@ -84,7 +147,7 @@ class InferDataset(Dataset):
 
 
 class GroupsDataset(Dataset):
-    def __init__(self, root, ann_file, dict_path, transform=None):
+    def __init__(self, root, ann_file, dict_path, transform=None, **kwargs):
         super().__init__()
         self.data_prefix = root
         self.ann_file = Path(root, ann_file)
@@ -160,6 +223,7 @@ class AnnotatedSingletaskDataset(Dataset):
         target_column,
         fold="test",
         transform=None,
+        **kwargs
     ):
         self.table = pd.read_csv(annotations_file, index_col=0)
         self.table = self.table[self.table["fold"] == fold]
@@ -195,7 +259,7 @@ class AnnotatedSingletaskDataset(Dataset):
         return img, labels
 
     def get_labels(self):
-        return self.table[self.target_names].values
+        return self.table[self.target_column].values
 
 
 class AnnotatedMultitaskDataset(Dataset):
@@ -216,6 +280,7 @@ class AnnotatedMultitaskDataset(Dataset):
         target_names,
         fold="test",
         transform=None,
+        **kwargs
     ):
         self.table = pd.read_csv(annotations_file, index_col=0)
         self.table = self.table[self.table["fold"] == fold]
@@ -269,31 +334,61 @@ class AnnotatedMultitaskDataset(Dataset):
 
 def get_dataset(data, pipeline):
     transform = Transforms(pipeline)
+    match data["type"]:
+        case "GroupsDataset":
+            dataset = GroupsDataset(
+                # data["root"],
+                # data["ann_file"],
+                # data["group_dict"],
+                transform=transform,
+                **data,
+            )
+        case "AnnotatedMultitaskDataset":
+            dataset = AnnotatedMultitaskDataset(
+                # data["ann_file"],
+                # data["target_names"],
+                # data["fold"],
+                transform=transform,
+                **data,
+            )
+        case "AnnotatedSingletaskDataset":
+            dataset = AnnotatedSingletaskDataset(
+                # data["ann_file"],
+                # data["target_column"],
+                # data["fold"],
+                transform=transform,
+                **data,
+            )
+
+        case _:
+            dataset = ImageFolder(data["root"], transform=transform)
+
+
     # TODO match case
     # kwargs to datasets
-    if data["type"] == "GroupsDataset":
-        dataset = GroupsDataset(
-            data["root"],
-            data["ann_file"],
-            data["group_dict"],
-            transform=transform,
-        )
-    elif data["type"] == "AnnotatedMultitaskDataset":
-        dataset = AnnotatedMultitaskDataset(
-            data["ann_file"],
-            data["target_names"],
-            data["fold"],
-            transform=transform,
-        )
-    elif data["type"] == "AnnotatedSingletaskDataset":
-        dataset = AnnotatedSingletaskDataset(
-            data["ann_file"],
-            data["target_column"],
-            data["fold"],
-            transform=transform,
-        )
-    else:
-        dataset = ImageFolder(data["root"], transform=transform)
+    # if data["type"] == "GroupsDataset":
+    #     dataset = GroupsDataset(
+    #         data["root"],
+    #         data["ann_file"],
+    #         data["group_dict"],
+    #         transform=transform,
+    #     )
+    # elif data["type"] == "AnnotatedMultitaskDataset":
+    #     dataset = AnnotatedMultitaskDataset(
+    #         data["ann_file"],
+    #         data["target_names"],
+    #         data["fold"],
+    #         transform=transform,
+    #     )
+    # elif data["type"] == "AnnotatedSingletaskDataset":
+    #     dataset = AnnotatedSingletaskDataset(
+    #         data["ann_file"],
+    #         data["target_column"],
+    #         data["fold"],
+    #         transform=transform,
+    #     )
+    # else:
+    #     dataset = ImageFolder(data["root"], transform=transform)
 
     if data.get("weighted_sampling", False):
         # TODO test this

@@ -15,12 +15,12 @@ enable_gradient_scaler = True
 
 task = "single"
 
-target_column = "dog_size"
+target_column = "dog_muzzle_len"
 
-model_path = f"/home/slava/nkb-classification/runs/demo_train6"
+model_path = f"runs/demo_train_7"
 
 experiment = {
-    "api_key_path": "/home/slava/nkb-classification/configs/comet_api_key.txt",
+    "api_key_path": "configs/comet_api_key.txt",
     "project_name": "nkb-classification",
     "workspace": "viacheslavm21",
     "auto_metric_logging": False,
@@ -95,10 +95,10 @@ val_pipeline = A.Compose(
 
 train_data = {
     "type": "AnnotatedSingletaskDataset",
-    "ann_file": "/home/slava/nkb-classification/jupyters_exps/annotation_high_res_video_split_v2_slava.csv",
+    "annotations_file": "/home/slava/nkb-classification/jupyters_exps/annotation_high_res_video_split_v2_slava.csv",
     "target_column": target_column,
     "fold": "train",
-    "weighted_sampling": False,
+    "weighted_sampling": True,
     "shuffle": True,
     "batch_size": 32,
     "num_workers": 10,
@@ -107,10 +107,10 @@ train_data = {
 
 val_data = {
     "type": "AnnotatedSingletaskDataset",
-    "ann_file": "/home/slava/nkb-classification/jupyters_exps/annotation_high_res_video_split_v2_slava.csv",
+    "annotations_file": "/home/slava/nkb-classification/jupyters_exps/annotation_high_res_video_split_v2_slava.csv",
     "target_column": target_column,
     "fold": "val",
-    "weighted_sampling": False,
+    "weighted_sampling": True,
     "shuffle": True,
     "batch_size": 32,
     "num_workers": 8,
