@@ -1,4 +1,6 @@
 
+from os.path import split
+
 import albumentations as A
 import cv2
 from albumentations.pytorch import ToTensorV2
@@ -18,15 +20,15 @@ target_column = "dog_muzzle_len"
 
 model_path = f"runs/train_sandbox"
 
-# experiment = {
-#     "api_key_path": "configs/comet_api_key.txt",
-#     "project_name": "nkb-classification",
-#     "workspace": "viacheslavm21",
-#     "auto_metric_logging": False,
-#     "name": split(model_path)[-1],
-# }
+experiment = {
+    "api_key_path": "configs/comet_api_key.txt",
+    "project_name": "nkb-classification",
+    "workspace": "viacheslavm21",
+    "auto_metric_logging": False,
+    "name": split(model_path)[-1],
+}
 
-experiment = None
+# experiment = None
 
 img_size = 224
 
@@ -117,6 +119,16 @@ train_data = {
     "size": img_size,
 }
 
+# train_data = {
+#     "type": "ImageFolder",
+#     "root": "/home/slava/hdd/hdd4/Datasets/spaces1000/train",
+#     "weighted_sampling": True,
+#     "shuffle": True,
+#     "batch_size": 32,
+#     "num_workers": 10,
+#     "size": img_size,
+# }
+
 val_data = {
     "type": "AnnotatedSingletaskDataset",
     "annotations_file": "/home/slava/hdd/hdd4/Datasets/petsearch/Dog_expo_Vladimir_02_07_2023_mp4_frames/demo_dataset.csv",
@@ -129,6 +141,16 @@ val_data = {
     "num_workers": 8,
     "size": img_size,
 }
+
+# val_data = {
+#     "type": "ImageFolder",
+#     "root": "/home/slava/hdd/hdd4/Datasets/spaces1000/val",
+#     "weighted_sampling": True,
+#     "shuffle": True,
+#     "batch_size": 32,
+#     "num_workers": 10,
+#     "size": img_size,
+# }
 
 model = {
     "task": task,
