@@ -59,6 +59,8 @@ class TrainLogger:
         'target_names', \
         'label_names', \
         'experiment', \
+        'task', \
+        'class_to_idx'
 
 
     def __init__(self, cfg, experiment, class_to_idx):
@@ -67,8 +69,12 @@ class TrainLogger:
 
         self.cfg = cfg
         self.experiment = experiment
+        self.task = cfg.task
+        self.class_to_idx = class_to_idx
 
-        if cfg.task == 'single':
+    def init_iter_logs(self):
+
+        if self.task == 'single':
             self.epoch_running_loss = []
             self.epoch_confidences = []
             self.epoch_predictions = []
@@ -76,18 +82,18 @@ class TrainLogger:
 
             self.target_names = None
             # import ipdb; ipdb.set_trace()
-            self.label_names = list(class_to_idx.keys())
+            self.label_names = list(self.class_to_idx.keys())
 
-        elif cfg.task == 'multi':
+        elif self.task == 'multi':
             self.epoch_running_loss = defaultdict(list)
             self.epoch_confidences = defaultdict(list)
             self.epoch_predictions = defaultdict(list)
             self.epoch_ground_truth = defaultdict(list)
 
-            self.target_names = [*sorted(class_to_idx)]
+            self.target_names = [*sorted(self.class_to_idx)]
 
             self.label_names = {
-                target_name: [*class_to_idx[target_name].keys()]
+                target_name: [*self.class_to_idx[target_name].keys()]
                 for target_name in self.target_names
             }
 
@@ -212,6 +218,7 @@ def train_epoch(
 ):
 
     model.train()
+    epoch_logger.init_iter_logs()
 
     if cfg.log_gradients:
         metrics_grad_log = defaultdict(list)
@@ -279,6 +286,7 @@ def val_epoch(
     epoch_logger,
     ):
     model.eval()
+    epoch_logger.init_iter_logs()
 
     batch_to_log = None
     for img, target in tqdm(val_loader, leave=False, desc="Evaluating"):

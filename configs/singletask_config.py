@@ -9,7 +9,7 @@ show_full_current_loss_in_terminal = False
 
 compile = False  # Is not working correctly yet, so set to False
 log_gradients = True
-n_epochs = 1 + 1
+n_epochs = 4 + 1
 device = "cuda:0"
 enable_mixed_presicion = True
 enable_gradient_scaler = True
@@ -106,12 +106,22 @@ fold : train, val
 weighted_sampling : works only for single task
 """
 
+# train_data = {
+#     "type": "AnnotatedSingletaskDataset",
+#     "annotations_file": "/home/slava/hdd/hdd4/Datasets/petsearch/Dog_expo_Vladimir_02_07_2023_mp4_frames/demo_dataset.csv",
+#     "image_base_dir": '/home/slava/hdd/hdd4/Datasets/petsearch/Dog_expo_Vladimir_02_07_2023_mp4_frames/multiclass_v4/images',
+#     "target_column": target_column,
+#     "fold": "train",
+#     "weighted_sampling": True,
+#     "shuffle": True,
+#     "batch_size": 32,
+#     "num_workers": 10,
+#     "size": img_size,
+# }
+
 train_data = {
-    "type": "AnnotatedSingletaskDataset",
-    "annotations_file": "/home/slava/hdd/hdd4/Datasets/petsearch/Dog_expo_Vladimir_02_07_2023_mp4_frames/demo_dataset.csv",
-    "image_base_dir": '/home/slava/hdd/hdd4/Datasets/petsearch/Dog_expo_Vladimir_02_07_2023_mp4_frames/multiclass_v4/images',
-    "target_column": target_column,
-    "fold": "train",
+    "type": "ImageFolder",
+    "root": "/home/slava/hdd/hdd4/Datasets/spaces1000/train",
     "weighted_sampling": True,
     "shuffle": True,
     "batch_size": 32,
@@ -119,38 +129,28 @@ train_data = {
     "size": img_size,
 }
 
-# train_data = {
-#     "type": "ImageFolder",
-#     "root": "/home/slava/hdd/hdd4/Datasets/spaces1000/train",
+# val_data = {
+#     "type": "AnnotatedSingletaskDataset",
+#     "annotations_file": "/home/slava/hdd/hdd4/Datasets/petsearch/Dog_expo_Vladimir_02_07_2023_mp4_frames/demo_dataset.csv",
+#     "image_base_dir": '/home/slava/hdd/hdd4/Datasets/petsearch/Dog_expo_Vladimir_02_07_2023_mp4_frames/multiclass_v4/images',
+#     "target_column": target_column,
+#     "fold": "val",
 #     "weighted_sampling": True,
 #     "shuffle": True,
 #     "batch_size": 32,
-#     "num_workers": 10,
+#     "num_workers": 8,
 #     "size": img_size,
 # }
 
 val_data = {
-    "type": "AnnotatedSingletaskDataset",
-    "annotations_file": "/home/slava/hdd/hdd4/Datasets/petsearch/Dog_expo_Vladimir_02_07_2023_mp4_frames/demo_dataset.csv",
-    "image_base_dir": '/home/slava/hdd/hdd4/Datasets/petsearch/Dog_expo_Vladimir_02_07_2023_mp4_frames/multiclass_v4/images',
-    "target_column": target_column,
-    "fold": "val",
+    "type": "ImageFolder",
+    "root": "/home/slava/hdd/hdd4/Datasets/spaces1000/val",
     "weighted_sampling": True,
     "shuffle": True,
     "batch_size": 32,
-    "num_workers": 8,
+    "num_workers": 10,
     "size": img_size,
 }
-
-# val_data = {
-#     "type": "ImageFolder",
-#     "root": "/home/slava/hdd/hdd4/Datasets/spaces1000/val",
-#     "weighted_sampling": True,
-#     "shuffle": True,
-#     "batch_size": 32,
-#     "num_workers": 10,
-#     "size": img_size,
-# }
 
 model = {
     "task": task,
