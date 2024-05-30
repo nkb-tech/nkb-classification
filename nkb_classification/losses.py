@@ -97,26 +97,6 @@ class FocalLoss(nn.Module):
 
         return loss
 
-# class MultitaskLoss:
-#     def __init__(self, loss):
-#         self.loss = loss
-#         self.iteration = -1
-
-#     def backward(self):
-#         self.loss['loss'].backward()
-
-#     def item(self):
-#         return self.loss['loss'].item()
-
-#     def __iter__(self):
-#         return self
-
-#     def __next__(self):
-#         self.iteration += 1
-#         if self.iteration < len(self.loss):
-#             return self.loss.values()[self.iteration]
-#         raise StopIteration
-
 class MultitaskCriterion:
     """
     Wrapper for any loss function, which
