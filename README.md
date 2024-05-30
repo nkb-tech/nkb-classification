@@ -42,6 +42,21 @@ cd nkb_classification
 python3 -m train -cfg `cfg_path`
 ```
 
+#### Train config guideline
+All configuration needed for training are passed by train config.py file.
+See sample files in configs/ directory.
+
+_Important fields_:
+* task : Determines task. Should be "single" for single task classfication (binary or multiclass), or 'multi' for multi task classification.
+* target_column *only for single task* : Column with class labels.
+* target_names *only for multi task* : Column names with class labels.
+* model_path : Path to save the checkpoints.
+* experiment : Settings regarding Comet ML logger. Set to None to disable it.
+* train_pipeline : Image preprocessing/augmentations during training phase.
+* val_pipeline : Image preprocessing/augmentations during validations phase.
+* train_data / val_data: Train / val dataset settings. Look at comments in sample configs for details.
+* model : Model settings. To choose a model, look section Available backbone models.
+
 ## Run inference
 
 ```bash

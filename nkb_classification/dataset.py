@@ -215,6 +215,7 @@ class AnnotatedSingletaskDataset(Dataset):
         target_column: name of the column containing class annotations
         fold: which fold in the dataset to work with (train, val, test, -1)
         trnsform: which transform to apply to the image before returning it in the __getitem__ method
+        image_base_dir: base directory of images. if = None, then absolute paths are expected in 'path' column.
     """
 
     def __init__(
@@ -223,6 +224,7 @@ class AnnotatedSingletaskDataset(Dataset):
         target_column,
         fold="test",
         transform=None,
+        image_base_dir=None,
         **kwargs
     ):
         self.table = pd.read_csv(annotations_file, index_col=0)
@@ -235,6 +237,12 @@ class AnnotatedSingletaskDataset(Dataset):
         self.idx_to_class = {idx: lb for lb, idx in self.class_to_idx.items()}
 
         self.transform = transform
+
+        if image_base_dir is not None:
+            image_base_dir = Path(image_base_dir)
+            self.table.path = self.table.path.apply(
+                lambda r: str(image_base_dir / Path(r))
+                )
 
     def __len__(self):
         return len(self.table)
@@ -280,6 +288,7 @@ class AnnotatedMultitaskDataset(Dataset):
         target_names,
         fold="test",
         transform=None,
+        image_base_dir=None,
         **kwargs
     ):
         self.table = pd.read_csv(annotations_file, index_col=0)
@@ -300,6 +309,12 @@ class AnnotatedMultitaskDataset(Dataset):
             for target_name, class_to_idx in self.class_to_idx.items()
         }
         self.transform = transform
+
+        if image_base_dir is not None:
+            image_base_dir = Path(image_base_dir)
+            self.table.path = self.table.path.apply(
+                lambda r: str(image_base_dir / Path(r))
+                )
 
     def __len__(self):
         return len(self.table)

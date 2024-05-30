@@ -1,4 +1,3 @@
-from os.path import split
 
 import albumentations as A
 import cv2
@@ -17,15 +16,17 @@ task = "single"
 
 target_column = "dog_muzzle_len"
 
-model_path = f"runs/demo_train_7"
+model_path = f"runs/train_sandbox"
 
-experiment = {
-    "api_key_path": "configs/comet_api_key.txt",
-    "project_name": "nkb-classification",
-    "workspace": "viacheslavm21",
-    "auto_metric_logging": False,
-    "name": split(model_path)[-1],
-}
+# experiment = {
+#     "api_key_path": "configs/comet_api_key.txt",
+#     "project_name": "nkb-classification",
+#     "workspace": "viacheslavm21",
+#     "auto_metric_logging": False,
+#     "name": split(model_path)[-1],
+# }
+
+experiment = None
 
 img_size = 224
 
@@ -93,9 +94,20 @@ val_pipeline = A.Compose(
     ]
 )
 
+"""
+Here you describe train data.
+type: AnnotatedSingletaskDataset, AnnotatedMultitaskDataset, GroupsDataset, defaut - ImageFolder.
+annotations_file: Path to csv labels in for AnnotatedSingletaskDataset and AnnotatedMultitaskDataset.
+image_base_dir: Base directory of images. Paths in 'path' column must be relative to this dir. Set None if you have global dirs in your csv file.
+target_column / target_names : column names(-s) with class labels.
+fold : train, val
+weighted_sampling : works only for single task
+"""
+
 train_data = {
     "type": "AnnotatedSingletaskDataset",
-    "annotations_file": "/home/slava/nkb-classification/jupyters_exps/annotation_high_res_video_split_v2_slava.csv",
+    "annotations_file": "/home/slava/hdd/hdd4/Datasets/petsearch/Dog_expo_Vladimir_02_07_2023_mp4_frames/demo_dataset.csv",
+    "image_base_dir": '/home/slava/hdd/hdd4/Datasets/petsearch/Dog_expo_Vladimir_02_07_2023_mp4_frames/multiclass_v4/images',
     "target_column": target_column,
     "fold": "train",
     "weighted_sampling": True,
@@ -107,7 +119,8 @@ train_data = {
 
 val_data = {
     "type": "AnnotatedSingletaskDataset",
-    "annotations_file": "/home/slava/nkb-classification/jupyters_exps/annotation_high_res_video_split_v2_slava.csv",
+    "annotations_file": "/home/slava/hdd/hdd4/Datasets/petsearch/Dog_expo_Vladimir_02_07_2023_mp4_frames/demo_dataset.csv",
+    "image_base_dir": '/home/slava/hdd/hdd4/Datasets/petsearch/Dog_expo_Vladimir_02_07_2023_mp4_frames/multiclass_v4/images',
     "target_column": target_column,
     "fold": "val",
     "weighted_sampling": True,
