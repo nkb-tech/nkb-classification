@@ -1,5 +1,6 @@
 runs
 jupyters_exps
+configs/comet*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
