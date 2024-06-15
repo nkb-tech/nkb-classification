@@ -362,14 +362,21 @@ def train(
             val_results,
         )
         # TODO save chkpt each n epoch
+        scripted = torch.jit.script(model)
         if epoch_val_acc is not None:
             if epoch_val_acc > best_val_acc:
                 best_val_acc = epoch_val_acc
                 torch.save(
                     model.state_dict(), Path(model_path, "best.pth")
                 )
+                scripted.save(Path(model_path, "scripted_best.pt"))
         torch.save(model.state_dict(), Path(model_path, "last.pth"))
-
+        scripted.save(Path(model_path, "scripted_last.pt"))
+        '''
+        To load scripted model use: 
+        model = torch.jit.load(path, map_location=device)
+        '''
+        
 
 def main():
     parser = argparse.ArgumentParser(description="Train arguments")

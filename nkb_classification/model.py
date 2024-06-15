@@ -36,7 +36,7 @@ class SingletaskClassifier(nn.Module):
                 nn.Linear(self.emb_size, len(classes)),
             )
 
-    def forward(self, x: torch.tensor):
+    def forward(self, x: torch.Tensor):
             emb = self.emb_model(x)
             return self.classifier(emb)
 
@@ -109,7 +109,7 @@ class MultitaskClassifier(nn.Module):
 
         self.initialize_classifiers(strategy=cfg_model["classifier_initialization"])
 
-    def forward(self, x: torch.tensor):
+    def forward(self, x: torch.Tensor):
         emb = self.emb_model(x)
         return {
             task_name: classifier(emb)
