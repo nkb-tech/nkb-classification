@@ -337,6 +337,9 @@ def train(
     scaler = GradScaler(enabled=cfg.enable_gradient_scaler)
 
     for epoch in tqdm(range(n_epochs), desc="Training epochs"):
+        if epoch in cfg.backbone_state_policy.keys():
+            model.set_backbone_state(cfg.backbone_state_policy[epoch])
+
         train_results = train_epoch(
             model,
             train_loader,
@@ -396,9 +399,7 @@ def main():
     classes = train_loader.dataset.classes
     device = torch.device(cfg.device)
     model = get_model(cfg.model, classes, device, compile=cfg.compile)
-    model.set_backbone_state("freeze")
 
-    # import ipdb; ipdb.set_trace()
     optimizer = get_optimizer(
         parameters=[
             {
