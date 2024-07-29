@@ -47,18 +47,14 @@ def parse_args():
         required=True,
         help="PyTorch model weights",
     )
-    parser.add_argument(
-        "--opset", type=int, default=17, help="ONNX opset version"
-    )
+    parser.add_argument("--opset", type=int, default=17, help="ONNX opset version")
     parser.add_argument(
         "--dynamic",
         type=str,
         default="batch",
         help="Dynamic axes for onnx export",
     )
-    parser.add_argument(
-        "--sim", action="store_true", help="simplify onnx model"
-    )
+    parser.add_argument("--sim", action="store_true", help="simplify onnx model")
     parser.add_argument(
         "--input-shape",
         nargs="+",
@@ -66,12 +62,8 @@ def parse_args():
         default=[1, 3, 224, 224],
         help="Model input shape only for api builder",
     )
-    parser.add_argument(
-        "--device", type=str, default="cpu", help="Export ONNX device"
-    )
-    parser.add_argument(
-        "--save_path", type=str, default=".", help="Save path"
-    )
+    parser.add_argument("--device", type=str, default="cpu", help="Export ONNX device")
+    parser.add_argument("--save_path", type=str, default=".", help="Save path")
     parser.add_argument(
         "--half",
         type=str2bool,
@@ -124,9 +116,7 @@ def main(args):
     model.eval()
 
     fmt = args.to.lower()  # to lowercase
-    fmts = tuple(
-        export_formats()["Argument"][1:]
-    )  # available export formats
+    fmts = tuple(export_formats()["Argument"][1:])  # available export formats
     flags = [x == fmt for x in fmts]
     jit_fmt, onnx_fmt, engine_fmt = flags  # export booleans
 
@@ -145,9 +135,7 @@ def main(args):
     }  # model metadata
 
     # warm-up
-    fake_input = torch.rand(
-        args.input_shape, dtype=torch.float32, device=device
-    )
+    fake_input = torch.rand(args.input_shape, dtype=torch.float32, device=device)
 
     with torch.no_grad():
         for _ in range(2):
@@ -163,10 +151,7 @@ def main(args):
         dynamic_axes = None
         if args.dynamic != "none":
             # outputs
-            dynamic_axes = {
-                output_name: {0: "batch"}
-                for output_name in output_names
-            }
+            dynamic_axes = {output_name: {0: "batch"} for output_name in output_names}
             # inputs
             dynamic_dims = {0: "batch"}
             if args.dynamic == "all":
@@ -200,14 +185,10 @@ def main(args):
             try:
                 import onnxsim
 
-                onnx_model_optimized, check = onnxsim.simplify(
-                    onnx_model
-                )
+                onnx_model_optimized, check = onnxsim.simplify(onnx_model)
                 assert check, "Assert `onnxsim.simplify` failed"
                 print("Finish! Here is the difference:")
-                onnxsim.model_info.print_simplifying_info(
-                    onnx_model, onnx_model_optimized
-                )
+                onnxsim.model_info.print_simplifying_info(onnx_model, onnx_model_optimized)
             except Exception as e:
                 print(f"Simplifier failure: {e}")
 
@@ -240,17 +221,13 @@ def main(args):
             print(f"Optimizing for mobile...")
             from torch.utils.mobile_optimizer import optimize_for_mobile
 
-            optimize_for_mobile(jit_model)._save_for_lite_interpreter(
-                save_path, _extra_files=extra_files
-            )
+            optimize_for_mobile(jit_model)._save_for_lite_interpreter(save_path, _extra_files=extra_files)
         else:
             jit_model.save(save_path, _extra_files=extra_files)
         torch.jit.save(jit_model, save_path)
 
     if engine_fmt:
-        assert (
-            device.type != "cpu"
-        ), "export running on CPU but must be on GPU, i.e. use 'device=0'"
+        assert device.type != "cpu", "export running on CPU but must be on GPU, i.e. use 'device=0'"
         import tensorrt as trt
 
         logger = trt.Logger(trt.Logger.INFO)
@@ -260,42 +237,27 @@ def main(args):
         builder = trt.Builder(logger)
         config = builder.create_builder_config()
         config.set_memory_pool_limit(
-            trt.MemoryPoolType.WORKSPACE,
-            int(0.9 *torch.cuda.get_device_properties(
-                device
-            ).total_memory)
+            trt.MemoryPoolType.WORKSPACE, int(0.9 * torch.cuda.get_device_properties(device).total_memory)
         )
 
-        flag = 1 << int(
-            trt.NetworkDefinitionCreationFlag.EXPLICIT_BATCH
-        )
+        flag = 1 << int(trt.NetworkDefinitionCreationFlag.EXPLICIT_BATCH)
         network = builder.create_network(flag)
         parser = trt.OnnxParser(network, logger)
 
         if not parser.parse_from_file(save_path):
             raise RuntimeError(f"failed to load ONNX file: {save_path}")
 
-        inputs = [
-            network.get_input(i) for i in range(network.num_inputs)
-        ]
-        outputs = [
-            network.get_output(i) for i in range(network.num_outputs)
-        ]
+        inputs = [network.get_input(i) for i in range(network.num_inputs)]
+        outputs = [network.get_output(i) for i in range(network.num_outputs)]
         for inp in inputs:
-            print(
-                f'input "{inp.name}" with shape {inp.shape} {inp.dtype}'
-            )
+            print(f'input "{inp.name}" with shape {inp.shape} {inp.dtype}')
         for out in outputs:
-            print(
-                f'output "{out.name}" with shape {out.shape} {out.dtype}'
-            )
+            print(f'output "{out.name}" with shape {out.shape} {out.dtype}')
 
         if args.dynamic != "none":
             shape = fake_input.shape
             if shape[0] <= 1:
-                print(
-                    f"WARNING ⚠️ 'dynamic=True' model requires max batch size, i.e. 'batch=16'"
-                )
+                print(f"WARNING ⚠️ 'dynamic=True' model requires max batch size, i.e. 'batch=16'")
             profile = builder.create_optimization_profile()
             for inp in inputs:
                 profile.set_shape(
@@ -306,9 +268,7 @@ def main(args):
                 )
             config.add_optimization_profile(profile)
 
-        print(
-            f"Building FP{16 if builder.platform_has_fast_fp16 and args.half else 32} engine as {save_path}"
-        )
+        print(f"Building FP{16 if builder.platform_has_fast_fp16 and args.half else 32} engine as {save_path}")
         if builder.platform_has_fast_fp16 and args.half:
             config.set_flag(trt.BuilderFlag.FP16)
 
@@ -332,14 +292,10 @@ def main(args):
         torch.cuda.empty_cache()
 
         # Write file
-        with builder.build_serialized_network(network, config) as engine, open(
-            save_path, "wb"
-        ) as t:
+        with builder.build_serialized_network(network, config) as engine, open(save_path, "wb") as t:
             # # Metadata
             meta = json.dumps(metadata)
-            t.write(
-                len(meta).to_bytes(4, byteorder="little", signed=True)
-            )
+            t.write(len(meta).to_bytes(4, byteorder="little", signed=True))
             t.write(meta.encode())
             # Model
             t.write(engine)

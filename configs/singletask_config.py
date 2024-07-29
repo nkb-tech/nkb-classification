@@ -1,4 +1,3 @@
-
 from os.path import split
 
 import albumentations as A
@@ -188,14 +187,6 @@ lr_policy = {
     "gamma": 0.1,
 }
 
-backbone_state_policy = {
-    0: "freeze",
-    5: "unfreeze",
-    10: "freeze"
-}
+backbone_state_policy = {0: "freeze", 5: "unfreeze", 10: "freeze"}
 
-criterion = {
-    "task": task,
-    "type": "FocalLoss",
-    "gamma": 1
-    }
+criterion = {"task": task, "type": "FocalLoss", "gamma": 1}

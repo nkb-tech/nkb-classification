@@ -43,6 +43,4 @@ inference_data = {
     "size": img_size,
 }
 
-model = {
-    "checkpoint": "/home/denis/src/project/models/classification/multitask/mobilenetv3_large_100_dummy/last.pth"
-}
+model = {"checkpoint": "/home/denis/src/project/models/classification/multitask/mobilenetv3_large_100_dummy/last.pth"}

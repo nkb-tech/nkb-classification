@@ -1,18 +1,11 @@
 import sys
 from collections import defaultdict
 from pathlib import Path
-import yaml
 
 import torch
+import yaml
 from comet_ml import Experiment
-from torch.optim import (
-    SGD,
-    Adam,
-    NAdam,
-    RAdam,
-    SparseAdam,
-    lr_scheduler,
-)
+from torch.optim import SGD, Adam, NAdam, RAdam, SparseAdam, lr_scheduler
 from torchvision import transforms
 from torchvision.utils import make_grid
 
@@ -65,9 +58,7 @@ def get_optimizer(parameters, cfg):
             weight_decay=cfg.get("weight_decay", 0.0),
         )
     else:
-        raise NotImplementedError(
-            f'Unknown optimizer in config: {cfg["type"]}'
-        )
+        raise NotImplementedError(f'Unknown optimizer in config: {cfg["type"]}')
     return opt
 
 
@@ -81,15 +72,9 @@ def get_scheduler(opt, lr_policy):
             gamma=lr_policy["gamma"],
         )
     elif lr_policy["type"] == "multistep":
-        scheduler = lr_scheduler.MultiStepLR(
-            opt, milestones=lr_policy["steps"], gamma=lr_policy["gamma"]
-        )
+        scheduler = lr_scheduler.MultiStepLR(opt, milestones=lr_policy["steps"], gamma=lr_policy["gamma"])
     else:
-        raise NotImplementedError(
-            "Learning rate policy {} not implemented.".format(
-                lr_policy["type"]
-            )
-        )
+        raise NotImplementedError("Learning rate policy {} not implemented.".format(lr_policy["type"]))
     return scheduler
 
 
@@ -100,9 +85,7 @@ def log_images(experiment, name, epoch, batch_to_log):
                 mean=[0.0, 0.0, 0.0],
                 std=[1 / 0.229, 1 / 0.224, 1 / 0.225],
             ),
-            transforms.Normalize(
-                mean=[-0.485, -0.456, -0.406], std=[1.0, 1.0, 1.0]
-            ),
+            transforms.Normalize(mean=[-0.485, -0.456, -0.406], std=[1.0, 1.0, 1.0]),
             transforms.ToPILImage(),
         ]
     )
@@ -142,6 +125,4 @@ def export_formats():
         ["ONNX", "onnx", ".onnx", True, True],
         ["TensorRT", "engine", ".engine", False, True],
     ]
-    return pandas.DataFrame(
-        x, columns=["Format", "Argument", "Suffix", "CPU", "GPU"]
-    )
+    return pandas.DataFrame(x, columns=["Format", "Argument", "Suffix", "CPU", "GPU"])
