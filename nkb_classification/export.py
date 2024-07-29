@@ -277,7 +277,7 @@ def main(args):
                 input_l = network.get_input(idx)
                 input_l.dtype = trt.float16
 
-            # explicity set outputs to fp16 or uint16
+            # explicitly set outputs to fp16 or uint16
             for idx in range(network.num_outputs):
                 output_l = network.get_output(idx)
                 if output_l.dtype == trt.float32:

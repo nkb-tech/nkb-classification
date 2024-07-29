@@ -194,7 +194,7 @@ class AnnotatedSingletaskDataset(Dataset):
 
     Args:
         annotations_file: path to the annotation file, which contains a pandas dataframe
-                          with image pahts and their target values
+                          with image paths and their target values
         target_column: name of the column containing class annotations
         fold: which fold in the dataset to work with (train, val, test, -1)
         trnsform: which transform to apply to the image before returning it in the __getitem__ method
@@ -243,7 +243,7 @@ class AnnotatedMultitaskDataset(Dataset):
 
     Args:
         annotations_file: path to the annotation file, which contains a pandas dataframe
-                          with image pahts and their target values
+                          with image paths and their target values
         target_names: list of target_names to consider
         fold: which fold in the dataset to work with (train, val, test, -1)
         trnsform: which transform to apply to the image before returning it in the __getitem__ method

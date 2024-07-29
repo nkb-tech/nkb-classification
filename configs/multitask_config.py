@@ -102,7 +102,7 @@ val_pipeline = A.Compose(
 
 """
 Here you describe train data.
-type: AnnotatedSingletaskDataset, AnnotatedMultitaskDataset, GroupsDataset, defaut - ImageFolder.
+type: AnnotatedSingletaskDataset, AnnotatedMultitaskDataset, GroupsDataset, default - ImageFolder.
 annotations_file: Path to csv labels in for AnnotatedSingletaskDataset and AnnotatedMultitaskDataset.
 image_base_dir: Base directory of images. Paths in 'path' column must be relative to this dir. Set None if you have global dirs in your csv file.
 target_column / target_names : column names(-s) with class labels.

@@ -9,7 +9,7 @@ ARG OS_VERSION=22.04
 # Define base image.
 FROM nvidia/cuda:${CUDA_VERSION}-cudnn8-devel-ubuntu${OS_VERSION} AS base
 
-# Dublicate args because of the visibility zone
+# Duplicate args because of the visibility zone
 # https://docs.docker.com/engine/reference/builder/#understand-how-arg-and-from-interact
 ARG CUDA_VERSION
 ARG OS_VERSION
