@@ -1,0 +1,123 @@
+# Overview:
+# This pyproject.toml file manages the build, packaging, and distribution of the library
+
+# Key Sections:
+# - [build-system]: Specifies the build requirements and backend (e.g., setuptools, wheel).
+# - [project]: Includes details like name, version, description, authors, dependencies and more.
+# - [project.optional-dependencies]: Provides additional, optional packages for extended features.
+# - [tool.*]: Configures settings for various tools (pytest, yapf, etc.) used in the project.
+
+# Installation:
+# The nkb-classification library can be installed using the command: 'pip install nkb_classification'
+# For development purposes, you can install the package in editable mode with: 'pip install -e .'
+# This approach allows for real-time code modifications without the need for re-installation.
+
+[build-system]
+requires = ["setuptools>=43.0.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+# Project settings -----------------------------------------------------------------------------------------------------
+[project]
+name = "nkb_classification"
+dynamic = ["version"]
+description = "Easy framework for computer vision classification tasks."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { "text" = "AGPL-3.0" }
+keywords = ["machine-learning", "deep-learning", "computer-vision", "classification"]
+authors = [
+    { name = "Denis Shveykin" },
+    { name = "Viacheslav Martynov" },
+    { name = "Ilya Basharov" },
+    { name = "Aleksander Nevarko" },
+]
+maintainers = [
+    { name = "Denis Shveykin" },
+    { name = "Viacheslav Martynov" },
+    { name = "Ilya Basharov" },
+    { name = "Aleksander Nevarko" },
+]
+classifiers = [
+    "Development Status :: 0 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: GNU Affero General Public License v3 or later (AGPLv3+)",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Scientific/Engineering :: Image Recognition",
+    "Operating System :: POSIX :: Linux",
+]
+
+# Required dependencies ------------------------------------------------------------------------------------------------
+dependencies = [
+    "numpy>=1.21.6",
+    "Pillow>=9.2.0",
+    "tqdm>=4.64.0",
+    "matplotlib>=3.2.2",
+    "scipy>=1.4.1",
+    "albumentations>=1.0.3",
+    "pandas>=1.1.4",
+    "torchsampler",
+    "comet-ml",
+    "timm",
+    "wheel",
+    "setuptools",
+    "ninja",
+]
+
+# Optional dependencies ------------------------------------------------------------------------------------------------
+[project.optional-dependencies]
+dev = [
+    "pre-commit",
+    "virtualenv",
+    "ipdb",
+    "monkeytype",
+    "pandas"
+]
+export = [
+    "onnx",
+    "onnxsim",
+    "onnxruntime",
+    "onnxruntime-gpu",
+    "tensorrt"
+]
+
+# # Tools settings -------------------------------------------------------------------------------------------------------
+# [tool.setuptools]  # configuration specific to the `setuptools` build backend.
+# packages = { find = { where = ["."], include = ["nkb_classification", "nkb_classification.*"] } }
+# package-data = { "nkb_classification" = ["**/*.yaml"], "nkb_classification.assets" = ["*.jpg"] }
+
+[tool.setuptools.dynamic]
+version = { attr = "nkb_classification.__version__" }
+
+[tool.isort]
+line_length = 120
+multi_line_output = 0
+
+[tool.yapf]
+based_on_style = "pep8"
+spaces_before_comment = 2
+column_limit = 120
+coalesce_brackets = true
+spaces_around_power_operator = true
+space_between_ending_comma_and_closing_bracket = true
+split_before_closing_bracket = false
+split_before_first_argument = false
+
+[tool.ruff]
+line-length = 120
+
+[tool.docformatter]
+wrap-summaries = 120
+wrap-descriptions = 120
+in-place = true
+pre-summary-newline = true
+close-quotes-on-newline = true
+
+[tool.codespell]
+ignore-words-list = "crate,nd,ned,strack,dota,ane,segway,fo,gool,winn,commend,bloc,nam,afterall"
+skip = '*.pt,*.pth,*.torchscript,*.onnx,*.tflite,*.pb,*.bin,*.param,*.mlmodel,*.engine,*.npy,*.data*,*.csv,*pnnx*,*venv*,*translat*,__pycache__*,*.ico,*.jpg,*.png,*.mp4,*.mov,/runs,/.git,./docs/??/*.md,./docs/mkdocs_??.yml'
