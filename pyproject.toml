@@ -87,9 +87,9 @@ export = [
 ]
 
 # # Tools settings -------------------------------------------------------------------------------------------------------
-# [tool.setuptools]  # configuration specific to the `setuptools` build backend.
-# packages = { find = { where = ["."], include = ["nkb_classification", "nkb_classification.*"] } }
-# package-data = { "nkb_classification" = ["**/*.yaml"], "nkb_classification.assets" = ["*.jpg"] }
+[tool.setuptools]  # configuration specific to the `setuptools` build backend.
+packages = { find = { where = ["."], include = ["nkb_classification", "nkb_classification.*"] } }
+package-data = { "nkb_classification" = ["**/*.yaml"], "nkb_classification.assets" = ["*.jpg"] }
 
 [tool.setuptools.dynamic]
 version = { attr = "nkb_classification.__version__" }
