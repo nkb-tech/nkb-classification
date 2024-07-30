@@ -1,6 +1,8 @@
 from collections import defaultdict
+from pathlib import Path
 
 import numpy as np
+import matplotlib.pyplot as plt
 import torch
 from torchvision import transforms
 from torchvision.utils import make_grid
@@ -121,7 +123,7 @@ def log_confusion_matrices(
             )
 
 
-def log_images(experiment, name, epoch, batch_to_log):
+def log_images(experiment, name, epoch, batch_to_log, locally=False):
     inv_transform = transforms.Compose(
         [
             transforms.Normalize(
@@ -133,7 +135,10 @@ def log_images(experiment, name, epoch, batch_to_log):
         ]
     )
     grid = inv_transform(make_grid(batch_to_log, nrow=8, padding=2))
-    experiment.log_image(grid, name=name, step=epoch)
+    if locally:
+        plt.imsave(Path(experiment) / name, grid)
+    else:
+        experiment.log_image(grid, name=name, step=epoch)
 
 
 def log_grads(experiment, epoch, metrics_grad_log):
@@ -170,6 +175,13 @@ class TrainLogger:
         self.experiment = experiment
         self.task = cfg.task
         self.class_to_idx = class_to_idx
+
+    def log_images_at_start(save_path, loader, n_batches=3):
+
+        for batch_num, (img_batch, _) in enumerate(loader):
+            if batch_num + 1 > n_batches:
+                break
+            log_images(experiment=save_path, name=f"train_batch_{batch_num + 1}.png", epoch=None, batch_to_log=img_batch, locally=True)
 
     def init_iter_logs(self):
 
@@ -226,7 +238,6 @@ class TrainLogger:
         }
 
     def log_epoch(self, epoch, train_results, val_results):
-        epoch_val_acc = None
         if self.experiment is not None:  # log metrics
             log_images(self.experiment, "Train", epoch, train_results["images"])
 
