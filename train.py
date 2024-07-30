@@ -148,13 +148,15 @@ def train(
     device,
     cfg,
 ):
-    model_path = Path(cfg.model_path)
+    model_path = Path(cfg.experiment["local"]["path"])/"weights"
     model_path.mkdir(exist_ok=True, parents=True)
     n_epochs = cfg.n_epochs
     best_val_acc = 0
     class_to_idx = train_loader.dataset.class_to_idx
     train_logger = TrainLogger(cfg, experiment, class_to_idx)
     scaler = GradScaler(enabled=cfg.enable_gradient_scaler)
+
+    train_logger.log_images_at_start(cfg.experiment["local"]["path"], train_loader)
 
     for epoch in tqdm(range(n_epochs), desc="Training epochs"):
         if epoch in cfg.backbone_state_policy.keys():
@@ -231,7 +233,7 @@ def main():
     )
     scheduler = get_scheduler(optimizer, cfg.lr_policy)
     criterion = get_loss(cfg.criterion, cfg.device)
-    experiment = get_experiment(cfg.experiment)
+    experiment = get_experiment(cfg.experiment["comet"])
     if experiment is not None:
         experiment.log_code(cfg_file)
         dir_path = os.path.dirname(os.path.realpath(__file__))
