@@ -1,35 +1,17 @@
-import os
+import argparse
+import json
+from collections import defaultdict
 from pathlib import Path
 
-from collections import defaultdict
-
-import comet_ml
-import json
 import numpy as np
-
 import torch
-from torch.cuda.amp import GradScaler
-
-import argparse
 from tqdm import tqdm
 
 from nkb_classification.dataset import get_dataset
-from nkb_classification.model import get_model
 from nkb_classification.losses import get_loss
-from nkb_classification.metrics import (
-    compute_metrics,
-    log_metrics,
-    log_confusion_matrices,
-)
-
-from nkb_classification.utils import (
-    get_experiment,
-    get_optimizer,
-    get_scheduler,
-    log_images,
-    log_grads,
-    read_py_config,
-)
+from nkb_classification.metrics import compute_metrics
+from nkb_classification.model import get_model
+from nkb_classification.utils import read_py_config
 
 
 def convert_dict_types_recursive(_dict):
@@ -53,34 +35,22 @@ def val_epoch(model, val_loader, criterion, target_names, device, cfg):
     batch_to_log = None
     for img, target in tqdm(val_loader, leave=False, desc="Evaluating"):
         img = img.to(device)
-        with torch.autocast(
-            device_type="cuda", dtype=torch.float16, enabled=cfg.enable_mixed_presicion
-        ):
+        with torch.autocast(device_type="cuda", dtype=torch.float16, enabled=cfg.enable_mixed_presicion):
             preds = model(img)
             loss = 0
             for target_name in target_names:
-                target_loss = criterion(
-                    preds[target_name], target[target_name].to(device)
-                ).item()
+                target_loss = criterion(preds[target_name], target[target_name].to(device)).item()
                 val_running_loss[target_name].append(target_loss)
                 loss += target_loss
 
         val_running_loss["loss"].append(loss)
 
         for target_name in target_names:
-            val_ground_truth[target_name].extend(
-                target[target_name].cpu().numpy().tolist()
-            )
+            val_ground_truth[target_name].extend(target[target_name].cpu().numpy().tolist())
             val_confidences[target_name].extend(
-                preds[target_name]
-                .softmax(dim=-1, dtype=torch.float32)
-                .cpu()
-                .numpy()
-                .tolist()
+                preds[target_name].softmax(dim=-1, dtype=torch.float32).cpu().numpy().tolist()
             )
-            val_predictions[target_name].extend(
-                preds[target_name].argmax(dim=-1).cpu().numpy().tolist()
-            )
+            val_predictions[target_name].extend(preds[target_name].argmax(dim=-1).cpu().numpy().tolist())
 
         if batch_to_log is None:
             batch_to_log = img.to("cpu")
@@ -109,9 +79,7 @@ def evaluate(model, loader, criterion, device, cfg):
 
 def main():
     parser = argparse.ArgumentParser(description="Train arguments")
-    parser.add_argument(
-        "-cfg", "--config", help="Config file path", type=str, default="", required=True
-    )
+    parser.add_argument("-cfg", "--config", help="Config file path", type=str, default="", required=True)
     args = parser.parse_args()
     cfg_file = args.config
     exec(read_py_config(cfg_file), globals(), globals())

@@ -31,17 +31,8 @@ def inference(
         batch_annotations = []
         for target_name in loader.dataset.target_names:
             pred = preds[target_name]
-            pred = (
-                pred.softmax(dim=-1)
-                .argmax(dim=1)
-                .cpu()
-                .numpy()
-                .tolist()
-            )
-            pred = [
-                loader.dataset.idx_to_class[target_name][idx]
-                for idx in pred
-            ]
+            pred = pred.softmax(dim=-1).argmax(dim=1).cpu().numpy().tolist()
+            pred = [loader.dataset.idx_to_class[target_name][idx] for idx in pred]
             batch_annotations.append(pred)
         batch_annotations.append(list(img_paths))
         batch_annotations = np.vstack(batch_annotations).T
@@ -51,9 +42,7 @@ def inference(
                 pd.DataFrame(batch_annotations, columns=columns),
             ]
         )
-    inference_annotations.to_csv(
-        Path(save_path, "inference_annotations.csv"), index=False
-    )
+    inference_annotations.to_csv(Path(save_path, "inference_annotations.csv"), index=False)
 
 
 def main():
@@ -72,9 +61,7 @@ def main():
     exec(read_py_config(cfg_file), globals(), globals())
 
     # get dataloader
-    data_loader = get_inference_dataset(
-        cfg.inference_data, cfg.inference_pipeline
-    )
+    data_loader = get_inference_dataset(cfg.inference_data, cfg.inference_pipeline)
     device = torch.device(cfg.device)
 
     # get model
@@ -82,9 +69,7 @@ def main():
     model = get_model(cfg.model, classes, device, compile=cfg.compile)
 
     # load weights
-    model.load_state_dict(
-        torch.load(cfg.model["checkpoint"], map_location="cpu")
-    )
+    model.load_state_dict(torch.load(cfg.model["checkpoint"], map_location="cpu"))
 
     save_path = Path(cfg.save_path)
     save_path.mkdir(exist_ok=True, parents=True)

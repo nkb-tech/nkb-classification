@@ -6,7 +6,7 @@ Easy framework for computer vision classification tasks.
 
 Download from git
 ```bash
-git clone git@github.com:nkb-tech/nkb-classification.git
+git clone git@github.com:nkb-tech/nkb-classification.git nkb_classification
 cd nkb_classification
 ```
 

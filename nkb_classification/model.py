@@ -10,8 +10,8 @@ class BaseClassifier(nn.Module):
     """
     Base classification class.
     """
-    def __init__(self, cfg_model: dict, classes: Union[list, dict]):
-        ...
+
+    def __init__(self, cfg_model: dict, classes: Union[list, dict]): ...
 
 
 class SingletaskClassifier(nn.Module):
@@ -32,13 +32,13 @@ class SingletaskClassifier(nn.Module):
         self.set_dropout(self.emb_model, cfg_model["backbone_dropout"])
 
         self.classifier = nn.Sequential(
-                nn.Dropout(cfg_model["classifier_dropout"]),
-                nn.Linear(self.emb_size, len(classes)),
-            )
+            nn.Dropout(cfg_model["classifier_dropout"]),
+            nn.Linear(self.emb_size, len(classes)),
+        )
 
     def forward(self, x: torch.Tensor):
-            emb = self.emb_model(x)
-            return self.classifier(emb)
+        emb = self.emb_model(x)
+        return self.classifier(emb)
 
     def initialize_classifier(self, strategy="kaiming_normal_"):
         for param in self.classifier.parameters():
@@ -111,10 +111,7 @@ class MultitaskClassifier(nn.Module):
 
     def forward(self, x: torch.Tensor):
         emb = self.emb_model(x)
-        return {
-            task_name: classifier(emb)
-            for task_name, classifier in self.classifier.items()
-        }
+        return {task_name: classifier(emb) for task_name, classifier in self.classifier.items()}
 
     def initialize_classifiers(self, strategy="kaiming_normal_"):
         for classifier in self.classifier.values():
@@ -161,13 +158,13 @@ class MultitaskClassifier(nn.Module):
 
 
 def get_model(cfg_model, classes, device="cpu", compile: bool = False):
-    if cfg_model['task'] == 'single':
+    if cfg_model["task"] == "single":
         model = SingletaskClassifier(cfg_model, classes)
-    elif cfg_model['task'] == 'multi':
+    elif cfg_model["task"] == "multi":
         model = MultitaskClassifier(cfg_model, classes)
-    chkpt = cfg_model.get('checkpoint', None)
+    chkpt = cfg_model.get("checkpoint", None)
     if chkpt is not None:
-        model.load_state_dict(torch.load(chkpt, map_location='cpu'))
+        model.load_state_dict(torch.load(chkpt, map_location="cpu"))
     model.to(device)
     if compile:
         model = torch.compile(model, dynamic=True)

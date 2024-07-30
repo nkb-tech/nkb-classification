@@ -19,16 +19,10 @@ class TRTModule(torch.nn.Module):
         trt.float32: torch.float32,
     }
 
-    def __init__(
-        self, weight: Union[str, Path], device: Optional[torch.device]
-    ) -> None:
+    def __init__(self, weight: Union[str, Path], device: Optional[torch.device]) -> None:
         super(TRTModule, self).__init__()
-        self.weight = (
-            Path(weight) if isinstance(weight, str) else weight
-        )
-        self.device = (
-            device if device is not None else torch.device("cuda:0")
-        )
+        self.weight = Path(weight) if isinstance(weight, str) else weight
+        self.device = device if device is not None else torch.device("cuda:0")
         self.stream = torch.cuda.Stream(device=device)
         self.__init_engine()
 
@@ -38,24 +32,16 @@ class TRTModule(torch.nn.Module):
         trt.init_libnvinfer_plugins(logger, namespace="")
 
         # Read file
-        with open(self.weight, "rb") as f, trt.Runtime(
-            logger
-        ) as runtime:
-            meta_len = int.from_bytes(
-                f.read(4), byteorder="little"
-            )  # read metadata length
-            metadata = json.loads(
-                f.read(meta_len).decode("utf-8")
-            )  # read metadata
-            model = runtime.deserialize_cuda_engine(
-                f.read()
-            )  # read engine
-            import ipdb; ipdb.set_trace()
+        with open(self.weight, "rb") as f, trt.Runtime(logger) as runtime:
+            meta_len = int.from_bytes(f.read(4), byteorder="little")  # read metadata length
+            metadata = json.loads(f.read(meta_len).decode("utf-8"))  # read metadata
+            model = runtime.deserialize_cuda_engine(f.read())  # read engine
+            import ipdb
+
+            ipdb.set_trace()
 
         context = model.create_execution_context()
-        Binding = namedtuple(
-            "Binding", ("name", "dtype", "shape", "data", "ptr")
-        )
+        Binding = namedtuple("Binding", ("name", "dtype", "shape", "data", "ptr"))
         bindings = OrderedDict()
         output_names = []
         fp16 = False  # default updated below
@@ -66,26 +52,16 @@ class TRTModule(torch.nn.Module):
             if model.binding_is_input(i):
                 if -1 in tuple(model.get_binding_shape(i)):  # dynamic
                     dynamic = True
-                    context.set_binding_shape(
-                        i, tuple(model.get_profile_shape(0, i)[2])
-                    )
+                    context.set_binding_shape(i, tuple(model.get_profile_shape(0, i)[2]))
                 if dtype == np.float16:
                     fp16 = True
             else:  # output
                 output_names.append(name)
             shape = tuple(context.get_binding_shape(i))
-            im = torch.from_numpy(np.empty(shape, dtype=dtype)).to(
-                self.device
-            )
-            bindings[name] = Binding(
-                name, dtype, shape, im, int(im.data_ptr())
-            )
-        binding_addrs = OrderedDict(
-            (n, d.ptr) for n, d in bindings.items()
-        )
-        batch_size = bindings["images"].shape[
-            0
-        ]  # if dynamic, this is instead max batch size
+            im = torch.from_numpy(np.empty(shape, dtype=dtype)).to(self.device)
+            bindings[name] = Binding(name, dtype, shape, im, int(im.data_ptr()))
+        binding_addrs = OrderedDict((n, d.ptr) for n, d in bindings.items())
+        batch_size = bindings["images"].shape[0]  # if dynamic, this is instead max batch size
 
         self.dynamic = dynamic
         self.bindings = bindings
@@ -96,9 +72,7 @@ class TRTModule(torch.nn.Module):
         self.fp16 = fp16
 
     def set_profiler(self, profiler: Optional[trt.IProfiler]):
-        self.context.profiler = (
-            profiler if profiler is not None else trt.Profiler()
-        )
+        self.context.profiler = profiler if profiler is not None else trt.Profiler()
 
     def forward(self, im: torch.Tensor) -> List[torch.Tensor]:
         if self.fp16 and im.dtype != torch.float16:
@@ -106,21 +80,13 @@ class TRTModule(torch.nn.Module):
 
         if self.dynamic and im.shape != self.bindings["images"].shape:
             i = self.model.get_binding_index("images")
-            self.context.set_binding_shape(
-                i, im.shape
-            )  # reshape if dynamic
-            self.bindings["images"] = self.bindings["images"]._replace(
-                shape=im.shape
-            )
+            self.context.set_binding_shape(i, im.shape)  # reshape if dynamic
+            self.bindings["images"] = self.bindings["images"]._replace(shape=im.shape)
             for name in self.output_names:
                 i = self.model.get_binding_index(name)
-                self.bindings[name].data.resize_(
-                    tuple(self.context.get_binding_shape(i))
-                )
+                self.bindings[name].data.resize_(tuple(self.context.get_binding_shape(i)))
         s = self.bindings["images"].shape
-        assert (
-            im.shape == s
-        ), f"input size {im.shape} {'>' if self.dynamic else 'not equal to'} max model size {s}"
+        assert im.shape == s, f"input size {im.shape} {'>' if self.dynamic else 'not equal to'} max model size {s}"
         self.binding_addrs["images"] = int(im.data_ptr())
         self.context.execute_v2(list(self.binding_addrs.values()))
         self.stream.synchronize()
@@ -149,9 +115,7 @@ def parse_args():
 
 
 def main(args):
-    rand_input = torch.rand(
-        1, 3, 224, 224, dtype=torch.float32, device=args.device
-    )
+    rand_input = torch.rand(1, 3, 224, 224, dtype=torch.float32, device=args.device)
 
     model = TRTModule(args.weights, args.device)
 
