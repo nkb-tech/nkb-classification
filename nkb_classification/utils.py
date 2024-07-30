@@ -1,13 +1,9 @@
 import sys
-from collections import defaultdict
 from pathlib import Path
 
-import torch
 import yaml
 from comet_ml import Experiment
 from torch.optim import SGD, Adam, NAdam, RAdam, SparseAdam, lr_scheduler
-from torchvision import transforms
-from torchvision.utils import make_grid
 
 
 def get_experiment(cfg_exp):
@@ -76,33 +72,6 @@ def get_scheduler(opt, lr_policy):
     else:
         raise NotImplementedError("Learning rate policy {} not implemented.".format(lr_policy["type"]))
     return scheduler
-
-
-def log_images(experiment, name, epoch, batch_to_log):
-    inv_transform = transforms.Compose(
-        [
-            transforms.Normalize(
-                mean=[0.0, 0.0, 0.0],
-                std=[1 / 0.229, 1 / 0.224, 1 / 0.225],
-            ),
-            transforms.Normalize(mean=[-0.485, -0.456, -0.406], std=[1.0, 1.0, 1.0]),
-            transforms.ToPILImage(),
-        ]
-    )
-    grid = inv_transform(make_grid(batch_to_log, nrow=8, padding=2))
-    experiment.log_image(grid, name=name, step=epoch)
-
-
-def log_grads(experiment, epoch, metrics_grad_log):
-    for key, value in metrics_grad_log.items():
-        experiment.log_metric(
-            key,
-            torch.nanmean(torch.stack(value)),
-            epoch=epoch,
-            step=epoch,
-        )
-    metrics_grad_log = defaultdict(list)
-    return metrics_grad_log
 
 
 def read_py_config(path):
