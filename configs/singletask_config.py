@@ -1,5 +1,3 @@
-from os.path import split
-
 import albumentations as A
 import cv2
 from albumentations.pytorch import ToTensorV2
@@ -17,12 +15,17 @@ task = "single"
 
 target_column = "label"
 
-model_path = f"/home/a.nevarko/projects/parking/models/occupancy/128_sputnik_6k_+spaces1000_resnet14t_focal_gamma_1_w"
+experiment_name = "128_sputnik_6k_+spaces1000_resnet14t_focal_gamma_1_w"
 
 experiment = {
-    "comet_api_cfg_path": "configs/comet_api_cfg.yml",
-    "auto_metric_logging": False,
-    "name": split(model_path)[-1],
+    "comet": {
+        "comet_api_cfg_path": "configs/comet_api_cfg.yml",
+        "auto_metric_logging": False,
+        "name": experiment_name,
+    },
+    "local": {
+        "path": f"/home/a.nevarko/projects/parking/models/occupancy/{experiment_name}",
+    }
 }
 
 # experiment = None

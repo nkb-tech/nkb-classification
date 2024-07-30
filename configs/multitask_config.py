@@ -24,14 +24,19 @@ target_names = [
     "dog_leg_len",
 ]
 
-model_path = f"runs/demo_train_8"
+experiment_name = "demo_train_8"
 
 experiment = {
-    "api_key_path": "configs/comet_api_key.txt",
-    "project_name": "nkb-classification",
-    "workspace": "viacheslavm21",
-    "auto_metric_logging": False,
-    "name": split(model_path)[-1],
+    "comet": {
+        "api_key_path": "configs/comet_api_key.txt",
+        "project_name": "nkb-classification",
+        "workspace": "viacheslavm21",
+        "auto_metric_logging": False,
+        "name": experiment_name,
+    },
+    "local": {
+        "path": f"runs/{experiment_name}",
+    }
 }
 
 img_size = 224
