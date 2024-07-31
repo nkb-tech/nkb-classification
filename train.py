@@ -12,7 +12,7 @@ from nkb_classification.losses import get_loss
 from nkb_classification.metrics import compute_metrics
 from nkb_classification.model import get_model
 from nkb_classification.utils import get_optimizer, get_scheduler, read_py_config
-from nkb_classification.logging import TrainLogger, get_comet_experiment
+from nkb_classification.logging import TrainLogger, get_comet_experiment, get_local_experiment
 
 
 class TrainPbar(tqdm):
@@ -149,11 +149,11 @@ def train(
     device,
     cfg,
 ):
-    model_path = Path(local_experiment["path"])/"weights"
+    model_path = Path(local_experiment)/"weights"
     n_epochs = cfg.n_epochs
     best_val_acc = 0
     class_to_idx = train_loader.dataset.class_to_idx
-    train_logger = TrainLogger(cfg, comet_experiment, local_experiment["path"], class_to_idx)
+    train_logger = TrainLogger(cfg, comet_experiment, local_experiment, class_to_idx)
     train_logger.log_images_at_start(train_loader)
     scaler = GradScaler(enabled=cfg.enable_gradient_scaler)
 
@@ -237,8 +237,7 @@ def main():
         comet_experiment.log_code(cfg_file)
         dir_path = os.path.dirname(os.path.realpath(__file__))
         comet_experiment.log_code(os.path.join(dir_path, "nkb_classification/model.py"))
-    local_experiment = cfg.experiment["local"]
-    assert local_experiment is not None and "path" in local_experiment.keys()
+    local_experiment = get_local_experiment(cfg.experiment["local"])
     train(
         model,
         train_loader,

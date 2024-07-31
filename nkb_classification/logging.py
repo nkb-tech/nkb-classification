@@ -26,6 +26,18 @@ def get_comet_experiment(cfg_exp):
     return exp
 
 
+def get_local_experiment(cfg_exp):
+    assert cfg_exp is not None and "path" in cfg_exp.keys()
+    exp_path = Path(cfg_exp["path"])
+    dir_duplicate_num = 1
+    while exp_path.exists(): # update local logging path if already exists
+        exp_path = Path(cfg_exp["path"] + str(dir_duplicate_num))
+        dir_duplicate_num += 1
+    exp_path.mkdir(parents=True)
+    (exp_path / "weights").mkdir()
+    return str(exp_path)
+
+
 def log_targetwise_metrics(experiment, target_name, label_names, epoch, metrics, fold="Train"):
     if target_name is None:
         target_name = ""
@@ -154,7 +166,7 @@ def log_images(experiment, name, epoch, batch_to_log, locally=False):
     )
     grid = inv_transform(make_grid(batch_to_log, nrow=8, padding=2))
     if locally:
-        plt.imsave(Path(experiment) / name, grid)
+        plt.imsave(Path(experiment) / name, np.array(grid))
     else:
         experiment.log_image(grid, name=name, step=epoch)
 
@@ -192,17 +204,9 @@ class TrainLogger:
 
         self.cfg = cfg
         self.comet_experiment = comet_experiment
-        self.local_experiment = Path(local_experiment)
+        self.local_experiment = local_experiment
         self.task = cfg.task
         self.class_to_idx = class_to_idx
-
-        dir_duplicate_num = 1
-        while self.local_experiment.exists(): # update local logging path if already exists
-            self.local_experiment = Path(local_experiment + str(dir_duplicate_num))
-            dir_duplicate_num += 1
-        
-        self.local_experiment.mkdir(parents=True)
-        (self.local_experiment / "weights").mkdir()
 
     def log_images_at_start(self, loader, n_batches=3):
 
