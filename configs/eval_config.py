@@ -21,7 +21,7 @@ img_size = 224
 val_pipeline = A.Compose(
     [
         A.LongestMaxSize(img_size, always_apply=True),
-        A.PadIfNeeded(img_size, img_size, always_apply=True, border_mode=cv2.BORDER_CONSTANT),
+        A.PadIfNeeded(img_size, img_size, always_apply=True, border_mode=cv2.BORDER_CONSTANT, value=0),
         A.Normalize(
             mean=(0.485, 0.456, 0.406),
             std=(0.229, 0.224, 0.225),

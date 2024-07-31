@@ -42,6 +42,7 @@ train_pipeline = A.Compose(
             img_size,
             always_apply=True,
             border_mode=cv2.BORDER_CONSTANT,
+            value=0
         ),
         A.MotionBlur(blur_limit=3, allow_shifted=True, p=0.5),
         A.RandomBrightnessContrast(
@@ -89,6 +90,7 @@ val_pipeline = A.Compose(
             img_size,
             always_apply=True,
             border_mode=cv2.BORDER_CONSTANT,
+            value=0
         ),
         A.Normalize(
             mean=(0.485, 0.456, 0.406),
