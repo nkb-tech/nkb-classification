@@ -1,11 +1,29 @@
 from collections import defaultdict
 from pathlib import Path
 
+import yaml
+from comet_ml import Experiment
+
 import numpy as np
 import matplotlib.pyplot as plt
 import torch
 from torchvision import transforms
 from torchvision.utils import make_grid
+
+
+def get_comet_experiment(cfg_exp):
+    if cfg_exp is None:
+        return None
+    api_cfg_path = cfg_exp.pop("comet_api_cfg_path")
+    with open(api_cfg_path, "r") as api_cfg_file:
+        comet_cfg = yaml.safe_load(api_cfg_file)
+        cfg_exp["api_key"] = comet_cfg["api_key"]
+        cfg_exp["workspace"] = comet_cfg["workspace"]
+        cfg_exp["project_name"] = comet_cfg["project_name"]
+    name = cfg_exp.pop("name")
+    exp = Experiment(**cfg_exp)
+    exp.set_name(name)
+    return exp
 
 
 def log_targetwise_metrics(experiment, target_name, label_names, epoch, metrics, fold="Train"):
@@ -162,27 +180,37 @@ class TrainLogger:
         "epoch_ground_truth",
         "target_names",
         "label_names",
-        "experiment",
+        "comet_experiment",
+        "local_experiment",
         "task",
         "class_to_idx",
     )
 
-    def __init__(self, cfg, experiment, class_to_idx):
+    def __init__(self, cfg, comet_experiment, local_experiment, class_to_idx):
 
         assert cfg.task in ("single", "multi")
 
         self.cfg = cfg
-        self.experiment = experiment
+        self.comet_experiment = comet_experiment
+        self.local_experiment = Path(local_experiment)
         self.task = cfg.task
         self.class_to_idx = class_to_idx
 
-    def log_images_at_start(self, save_path, loader, n_batches=3):
+        dir_duplicate_num = 1
+        while self.local_experiment.exists(): # update local logging path if already exists
+            self.local_experiment = Path(local_experiment + str(dir_duplicate_num))
+            dir_duplicate_num += 1
+        
+        self.local_experiment.mkdir(parents=True)
+        (self.local_experiment / "weights").mkdir()
+
+    def log_images_at_start(self, loader, n_batches=3):
 
         for batch_num, (img_batch, _) in enumerate(loader):
             if batch_num + 1 > n_batches:
                 break
             log_images(
-                experiment=save_path,
+                experiment=self.local_experiment,
                 name=f"train_batch_{batch_num + 1}.png",
                 epoch=None,
                 batch_to_log=img_batch,
@@ -244,7 +272,7 @@ class TrainLogger:
         }
 
     def log_epoch(self, epoch, train_results, val_results):
-        if self.experiment is not None:  # log metrics
+        if self.comet_experiment is not None:  # log metrics
             log_images(self.experiment, "Train", epoch, train_results["images"])
 
             log_images(self.experiment, "Validation", epoch, val_results["images"])

@@ -11,8 +11,8 @@ from nkb_classification.dataset import get_dataset
 from nkb_classification.losses import get_loss
 from nkb_classification.metrics import compute_metrics
 from nkb_classification.model import get_model
-from nkb_classification.utils import get_experiment, get_optimizer, get_scheduler, read_py_config
-from nkb_classification.logging import TrainLogger
+from nkb_classification.utils import get_optimizer, get_scheduler, read_py_config
+from nkb_classification.logging import TrainLogger, get_comet_experiment
 
 
 class TrainPbar(tqdm):
@@ -144,19 +144,18 @@ def train(
     optimizer,
     scheduler,
     criterion,
-    experiment,
+    comet_experiment,
+    local_experiment,
     device,
     cfg,
 ):
-    model_path = Path(cfg.experiment["local"]["path"])/"weights"
-    model_path.mkdir(exist_ok=True, parents=True)
+    model_path = Path(local_experiment["path"])/"weights"
     n_epochs = cfg.n_epochs
     best_val_acc = 0
     class_to_idx = train_loader.dataset.class_to_idx
-    train_logger = TrainLogger(cfg, experiment, class_to_idx)
+    train_logger = TrainLogger(cfg, comet_experiment, local_experiment["path"], class_to_idx)
+    train_logger.log_images_at_start(train_loader)
     scaler = GradScaler(enabled=cfg.enable_gradient_scaler)
-
-    train_logger.log_images_at_start(cfg.experiment["local"]["path"], train_loader)
 
     for epoch in tqdm(range(n_epochs), desc="Training epochs"):
         if epoch in cfg.backbone_state_policy.keys():
@@ -233,11 +232,13 @@ def main():
     )
     scheduler = get_scheduler(optimizer, cfg.lr_policy)
     criterion = get_loss(cfg.criterion, cfg.device)
-    experiment = get_experiment(cfg.experiment["comet"])
-    if experiment is not None:
-        experiment.log_code(cfg_file)
+    comet_experiment = get_comet_experiment(cfg.experiment["comet"])
+    if comet_experiment is not None:
+        comet_experiment.log_code(cfg_file)
         dir_path = os.path.dirname(os.path.realpath(__file__))
-        experiment.log_code(os.path.join(dir_path, "nkb_classification/model.py"))
+        comet_experiment.log_code(os.path.join(dir_path, "nkb_classification/model.py"))
+    local_experiment = cfg.experiment["local"]
+    assert local_experiment is not None and "path" in local_experiment.keys()
     train(
         model,
         train_loader,
@@ -245,7 +246,8 @@ def main():
         optimizer,
         scheduler,
         criterion,
-        experiment,
+        comet_experiment,
+        local_experiment,
         device,
         cfg,
     )

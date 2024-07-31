@@ -1,24 +1,7 @@
 import sys
 from pathlib import Path
 
-import yaml
-from comet_ml import Experiment
 from torch.optim import SGD, Adam, NAdam, RAdam, SparseAdam, lr_scheduler
-
-
-def get_experiment(cfg_exp):
-    if cfg_exp is None:
-        return None
-    api_cfg_path = cfg_exp.pop("comet_api_cfg_path")
-    with open(api_cfg_path, "r") as api_cfg_file:
-        comet_cfg = yaml.safe_load(api_cfg_file)
-        cfg_exp["api_key"] = comet_cfg["api_key"]
-        cfg_exp["workspace"] = comet_cfg["workspace"]
-        cfg_exp["project_name"] = comet_cfg["project_name"]
-    name = cfg_exp.pop("name")
-    exp = Experiment(**cfg_exp)
-    exp.set_name(name)
-    return exp
 
 
 def get_optimizer(parameters, cfg):
