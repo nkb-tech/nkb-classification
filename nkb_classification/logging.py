@@ -176,12 +176,18 @@ class TrainLogger:
         self.task = cfg.task
         self.class_to_idx = class_to_idx
 
-    def log_images_at_start(save_path, loader, n_batches=3):
+    def log_images_at_start(self, save_path, loader, n_batches=3):
 
         for batch_num, (img_batch, _) in enumerate(loader):
             if batch_num + 1 > n_batches:
                 break
-            log_images(experiment=save_path, name=f"train_batch_{batch_num + 1}.png", epoch=None, batch_to_log=img_batch, locally=True)
+            log_images(
+                experiment=save_path,
+                name=f"train_batch_{batch_num + 1}.png",
+                epoch=None,
+                batch_to_log=img_batch,
+                locally=True
+            )
 
     def init_iter_logs(self):
 
