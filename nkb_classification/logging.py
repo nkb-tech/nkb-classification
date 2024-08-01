@@ -1,22 +1,42 @@
 from collections import defaultdict
+from collections.abc import Sequence
+
 from pathlib import Path
 
 import yaml
 from comet_ml import Experiment as CometExperiment
 
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
 import torch
 from torchvision import transforms
 from torchvision.utils import make_grid
 
+from nkb_classification.utils import sort_df_columns_titled
+
 
 class LocalExperiment:
     def __init__(self, path=""):
         self.path = Path(path)
+        self.metrics = pd.DataFrame([], columns=["Epoch"])
 
     def log_image(self, image, name="", step=0):
         plt.imsave(self.path / f"{name}_{step}.png", np.array(image))
+
+    def log_metric(self, name, value, epoch=0, step=None, prefix=None):
+        if prefix is not None:
+            name = f"{prefix}/{name}"
+        if isinstance(value, Sequence):  # take mean of epoch history
+            value = np.mean(value)
+        self.metrics.loc[epoch, name] = value  # only epochs are supported as step numbers
+        self.metrics.loc[:, "Epoch"] = range(len(self.metrics))
+        self.metrics = sort_df_columns_titled(self.metrics) # sort metric namse aplhabetically
+        self.metrics.to_csv(self.path / "metrics.csv", index=False, sep="\t")
+
+    def log_metrics(self, metrics_dict, epoch=0, step=None, prefix=None):
+        for name, value in metrics_dict.items():
+            self.log_metric(name, value, epoch=epoch, prefix=prefix)
         
 
 def get_comet_experiment(cfg_exp):
@@ -281,7 +301,27 @@ class TrainLogger:
         }
 
     def log_epoch(self, epoch, train_results, val_results):
-        if self.comet_experiment is not None:  # log metrics
+
+        # log metrics locally
+        log_metrics(
+            self.local_experiment,
+            self.target_names,
+            self.label_names,
+            epoch,
+            train_results["metrics"],
+            "Train"
+        )
+
+        log_metrics(
+            self.local_experiment,
+            self.target_names,
+            self.label_names,
+            epoch,
+            val_results["metrics"],
+            "Val"
+        )
+
+        if self.comet_experiment is not None:  # log metrics to comet
             log_images(self.comet_experiment, "Train", epoch, train_results["images"])
 
             log_images(self.comet_experiment, "Validation", epoch, val_results["images"])

@@ -1,6 +1,7 @@
 import sys
 from pathlib import Path
 
+import pandas as pd
 from torch.optim import SGD, Adam, NAdam, RAdam, SparseAdam, lr_scheduler
 
 
@@ -62,6 +63,13 @@ def read_py_config(path):
     sys.path.append(str(path.parent))
     line = f"import {path.stem} as cfg"
     return line
+
+
+def sort_df_columns_titled(df):
+    first_column = df.iloc[:, 0]
+    other_columns_sorted = df.iloc[:, 1:].reindex(sorted(df.columns[1:]), axis=1)
+    df_sorted = pd.concat([first_column, other_columns_sorted], axis=1)
+    return df_sorted
 
 
 def export_formats():
