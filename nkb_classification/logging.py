@@ -282,12 +282,12 @@ class TrainLogger:
 
     def log_epoch(self, epoch, train_results, val_results):
         if self.comet_experiment is not None:  # log metrics
-            log_images(self.experiment, "Train", epoch, train_results["images"])
+            log_images(self.comet_experiment, "Train", epoch, train_results["images"])
 
-            log_images(self.experiment, "Validation", epoch, val_results["images"])
+            log_images(self.comet_experiment, "Validation", epoch, val_results["images"])
 
             log_metrics(
-                self.experiment,
+                self.comet_experiment,
                 self.target_names,
                 self.label_names,
                 epoch,
@@ -296,7 +296,7 @@ class TrainLogger:
             )
 
             log_metrics(
-                self.experiment,
+                self.comet_experiment,
                 self.target_names,
                 self.label_names,
                 epoch,
@@ -305,7 +305,7 @@ class TrainLogger:
             )
 
             log_confusion_matrices(
-                self.experiment,
+                self.comet_experiment,
                 self.target_names,
                 self.label_names,
                 epoch,
@@ -314,4 +314,4 @@ class TrainLogger:
             )
 
             if self.cfg.log_gradients:
-                log_grads(self.experiment, epoch, train_results["metrics_grad_log"])
+                log_grads(self.comet_experiment, epoch, train_results["metrics_grad_log"])
