@@ -149,7 +149,7 @@ def train(
     device,
     cfg,
 ):
-    model_path = Path(local_experiment)/"weights"
+    model_path = local_experiment.path / "weights"
     n_epochs = cfg.n_epochs
     best_val_acc = 0
     class_to_idx = train_loader.dataset.class_to_idx

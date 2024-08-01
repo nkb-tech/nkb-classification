@@ -2,7 +2,7 @@ from collections import defaultdict
 from pathlib import Path
 
 import yaml
-from comet_ml import Experiment
+from comet_ml import Experiment as CometExperiment
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -10,6 +10,14 @@ import torch
 from torchvision import transforms
 from torchvision.utils import make_grid
 
+
+class LocalExperiment:
+    def __init__(self, path=""):
+        self.path = Path(path)
+
+    def log_image(self, image, name="", step=0):
+        plt.imsave(self.path / f"{name}_{step}.png", np.array(image))
+        
 
 def get_comet_experiment(cfg_exp):
     if cfg_exp is None:
@@ -21,7 +29,7 @@ def get_comet_experiment(cfg_exp):
         cfg_exp["workspace"] = comet_cfg["workspace"]
         cfg_exp["project_name"] = comet_cfg["project_name"]
     name = cfg_exp.pop("name")
-    exp = Experiment(**cfg_exp)
+    exp = CometExperiment(**cfg_exp)
     exp.set_name(name)
     return exp
 
@@ -35,7 +43,8 @@ def get_local_experiment(cfg_exp):
         dir_duplicate_num += 1
     exp_path.mkdir(parents=True)
     (exp_path / "weights").mkdir()
-    return str(exp_path)
+    exp = LocalExperiment(exp_path)
+    return exp
 
 
 def log_targetwise_metrics(experiment, target_name, label_names, epoch, metrics, fold="Train"):
@@ -153,7 +162,7 @@ def log_confusion_matrices(
             )
 
 
-def log_images(experiment, name, epoch, batch_to_log, locally=False):
+def log_images(experiment, name, epoch, batch_to_log):
     inv_transform = transforms.Compose(
         [
             transforms.Normalize(
@@ -165,10 +174,7 @@ def log_images(experiment, name, epoch, batch_to_log, locally=False):
         ]
     )
     grid = inv_transform(make_grid(batch_to_log, nrow=8, padding=2))
-    if locally:
-        plt.imsave(Path(experiment) / name, np.array(grid))
-    else:
-        experiment.log_image(grid, name=name, step=epoch)
+    experiment.log_image(grid, name=name, step=epoch)
 
 
 def log_grads(experiment, epoch, metrics_grad_log):
@@ -215,10 +221,9 @@ class TrainLogger:
                 break
             log_images(
                 experiment=self.local_experiment,
-                name=f"train_batch_{batch_num + 1}.png",
-                epoch=None,
-                batch_to_log=img_batch,
-                locally=True
+                name=f"train_batch",
+                epoch=batch_num+1,
+                batch_to_log=img_batch
             )
 
     def init_iter_logs(self):
