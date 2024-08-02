@@ -26,9 +26,7 @@ experiment_name = "demo_train_8"
 
 experiment = {
     "comet": {
-        "api_key_path": "configs/comet_api_key.txt",
-        "project_name": "nkb-classification",
-        "workspace": "viacheslavm21",
+        "comet_api_cfg_path": "configs/comet_api_cfg.yml",
         "auto_metric_logging": False,
         "name": experiment_name,
     },
