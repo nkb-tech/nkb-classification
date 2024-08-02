@@ -163,7 +163,7 @@ def log_confusion_matrices(
         experiment.log_confusion_matrix(
             results["ground_truth"],
             results["predictions"],
-            labels=label_names,
+            labels=tuple(map(str, label_names)),
             title=f"{fold} confusion matrix",
             file_name=f"{fold}-confusion-matrix.json",
             epoch=epoch,
@@ -173,7 +173,7 @@ def log_confusion_matrices(
             experiment.log_confusion_matrix(
                 results["ground_truth"][target_name],
                 results["predictions"][target_name],
-                labels=label_names[target_name],
+                labels=tuple(map(str, label_names[target_name])),
                 title=f"{fold} {target_name} confusion matrix",
                 file_name=f"{fold}-{target_name}-confusion-matrix.json",
                 epoch=epoch,
