@@ -1,5 +1,3 @@
-from os.path import split
-
 import albumentations as A
 import cv2
 from albumentations.pytorch import ToTensorV2
@@ -36,7 +34,7 @@ experiment = {
     },
     "local": {
         "path": f"runs/{experiment_name}",
-    }
+    },
 }
 
 img_size = 224
@@ -44,13 +42,7 @@ img_size = 224
 train_pipeline = A.Compose(
     [
         A.LongestMaxSize(img_size, always_apply=True),
-        A.PadIfNeeded(
-            img_size,
-            img_size,
-            always_apply=True,
-            border_mode=cv2.BORDER_CONSTANT,
-            value=0
-        ),
+        A.PadIfNeeded(img_size, img_size, always_apply=True, border_mode=cv2.BORDER_CONSTANT, value=0),
         A.MotionBlur(blur_limit=3, allow_shifted=True, p=0.5),
         A.RandomBrightnessContrast(
             brightness_limit=(-0.2, 0.2),
@@ -92,13 +84,7 @@ train_pipeline = A.Compose(
 val_pipeline = A.Compose(
     [
         A.LongestMaxSize(img_size, always_apply=True),
-        A.PadIfNeeded(
-            img_size,
-            img_size,
-            always_apply=True,
-            border_mode=cv2.BORDER_CONSTANT,
-            value=0
-        ),
+        A.PadIfNeeded(img_size, img_size, always_apply=True, border_mode=cv2.BORDER_CONSTANT, value=0),
         A.Normalize(
             mean=(0.485, 0.456, 0.406),
             std=(0.229, 0.224, 0.225),

@@ -8,11 +8,11 @@ from torch.cuda.amp import GradScaler
 from tqdm import tqdm
 
 from nkb_classification.dataset import get_dataset
+from nkb_classification.logging import TrainLogger, get_comet_experiment, get_local_experiment
 from nkb_classification.losses import get_loss
 from nkb_classification.metrics import compute_metrics
 from nkb_classification.model import get_model
 from nkb_classification.utils import get_optimizer, get_scheduler, read_py_config
-from nkb_classification.logging import TrainLogger, get_comet_experiment, get_local_experiment
 
 
 class TrainPbar(tqdm):

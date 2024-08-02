@@ -1,15 +1,13 @@
 from collections import defaultdict
 from collections.abc import Sequence
-
 from pathlib import Path
 
-import yaml
-from comet_ml import Experiment as CometExperiment
-
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
 import torch
+import yaml
+from comet_ml import Experiment as CometExperiment
 from torchvision import transforms
 from torchvision.utils import make_grid
 
@@ -31,13 +29,13 @@ class LocalExperiment:
             value = np.mean(value)
         self.metrics.loc[epoch, name] = value  # only epochs are supported as step numbers
         self.metrics.loc[:, "Epoch"] = range(len(self.metrics))
-        self.metrics = sort_df_columns_titled(self.metrics) # sort metric namse aplhabetically
+        self.metrics = sort_df_columns_titled(self.metrics)  # sort metric namse aplhabetically
         self.metrics.to_csv(self.path / "metrics.csv", index=False, sep="\t")
 
     def log_metrics(self, metrics_dict, epoch=0, step=None, prefix=None):
         for name, value in metrics_dict.items():
             self.log_metric(name, value, epoch=epoch, prefix=prefix)
-        
+
 
 def get_comet_experiment(cfg_exp):
     if cfg_exp is None:
@@ -58,7 +56,7 @@ def get_local_experiment(cfg_exp):
     assert cfg_exp is not None and "path" in cfg_exp.keys()
     exp_path = Path(cfg_exp["path"])
     dir_duplicate_num = 1
-    while exp_path.exists(): # update local logging path if already exists
+    while exp_path.exists():  # update local logging path if already exists
         exp_path = Path(cfg_exp["path"] + str(dir_duplicate_num))
         dir_duplicate_num += 1
     exp_path.mkdir(parents=True)
@@ -240,10 +238,7 @@ class TrainLogger:
             if batch_num + 1 > n_batches:
                 break
             log_images(
-                experiment=self.local_experiment,
-                name=f"train_batch",
-                epoch=batch_num+1,
-                batch_to_log=img_batch
+                experiment=self.local_experiment, name=f"train_batch", epoch=batch_num + 1, batch_to_log=img_batch
             )
 
     def init_iter_logs(self):
@@ -304,22 +299,10 @@ class TrainLogger:
 
         # log metrics locally
         log_metrics(
-            self.local_experiment,
-            self.target_names,
-            self.label_names,
-            epoch,
-            train_results["metrics"],
-            "Train"
+            self.local_experiment, self.target_names, self.label_names, epoch, train_results["metrics"], "Train"
         )
 
-        log_metrics(
-            self.local_experiment,
-            self.target_names,
-            self.label_names,
-            epoch,
-            val_results["metrics"],
-            "Val"
-        )
+        log_metrics(self.local_experiment, self.target_names, self.label_names, epoch, val_results["metrics"], "Val")
 
         if self.comet_experiment is not None:  # log metrics to comet
             log_images(self.comet_experiment, "Train", epoch, train_results["images"])
