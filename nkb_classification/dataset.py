@@ -352,6 +352,7 @@ def get_dataset(data, pipeline):
     # else:
     #     dataset = ImageFolder(data["root"], transform=transform)
 
+    drop_last = data.get("drop_last", False)
     if data.get("weighted_sampling", False):
         # TODO test this
         # get_labels
@@ -361,6 +362,7 @@ def get_dataset(data, pipeline):
             sampler=ImbalancedDatasetSampler(dataset),
             num_workers=data["num_workers"],
             pin_memory=True,
+            drop_last=drop_last,
         )
     else:
         loader = DataLoader(
@@ -369,6 +371,7 @@ def get_dataset(data, pipeline):
             shuffle=data["shuffle"],
             num_workers=data["num_workers"],
             pin_memory=True,
+            drop_last=drop_last,
         )
     return loader
 
