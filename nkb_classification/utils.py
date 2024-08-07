@@ -6,55 +6,59 @@ from torch.optim import SGD, Adam, NAdam, RAdam, SparseAdam, lr_scheduler
 
 
 def get_optimizer(parameters, cfg):
-    if cfg["type"] == "adam":
-        opt = Adam(
-            parameters,
-            lr=cfg["lr"],
-            weight_decay=cfg.get("weight_decay", 0.0),
-        )
-    elif cfg["type"] == "radam":
-        opt = RAdam(
-            parameters,
-            lr=cfg["lr"],
-            weight_decay=cfg.get("weight_decay", 0.0),
-        )
-    elif cfg["type"] == "nadam":
-        opt = NAdam(
-            parameters,
-            lr=cfg["lr"],
-            weight_decay=cfg.get("weight_decay", 0.0),
-            decoupled_weight_decay=True,
-        )
-    elif cfg["type"] == "sparse_adam":
-        opt = SparseAdam(
-            parameters,
-            lr=cfg["lr"],
-            weight_decay=cfg.get("weight_decay", 0.0),
-        )
-    elif cfg["type"] == "sgd":
-        opt = SGD(
-            parameters,
-            lr=cfg["lr"],
-            weight_decay=cfg.get("weight_decay", 0.0),
-        )
-    else:
-        raise NotImplementedError(f'Unknown optimizer in config: {cfg["type"]}')
+    match cfg["type"]:
+        case "adam":
+            opt = Adam(
+                parameters,
+                lr=cfg["lr"],
+                weight_decay=cfg.get("weight_decay", 0.0),
+            )
+        case "radam":
+            opt = RAdam(
+                parameters,
+                lr=cfg["lr"],
+                weight_decay=cfg.get("weight_decay", 0.0),
+            )
+        case "nadam":
+            opt = NAdam(
+                parameters,
+                lr=cfg["lr"],
+                weight_decay=cfg.get("weight_decay", 0.0),
+                decoupled_weight_decay=True,
+            )
+        case "sparse_adam":
+            opt = SparseAdam(
+                parameters,
+                lr=cfg["lr"],
+                weight_decay=cfg.get("weight_decay", 0.0),
+            )
+        case "sgd":
+            opt = SGD(
+                parameters,
+                lr=cfg["lr"],
+                weight_decay=cfg.get("weight_decay", 0.0),
+            )
+        case _:
+            raise NotImplementedError(f'Unknown optimizer in config: {cfg["type"]}')
     return opt
 
 
 def get_scheduler(opt, lr_policy):
     if len(lr_policy) == 0:
         return None
-    if lr_policy["type"] == "step":
-        scheduler = lr_scheduler.StepLR(
-            opt,
-            step_size=lr_policy["step_size"],
-            gamma=lr_policy["gamma"],
-        )
-    elif lr_policy["type"] == "multistep":
-        scheduler = lr_scheduler.MultiStepLR(opt, milestones=lr_policy["steps"], gamma=lr_policy["gamma"])
-    else:
-        raise NotImplementedError("Learning rate policy {} not implemented.".format(lr_policy["type"]))
+    match lr_policy["type"]:
+        case "step":
+            scheduler = lr_scheduler.StepLR(
+                opt,
+                step_size=lr_policy["step_size"],
+                gamma=lr_policy["gamma"],
+            )
+        case "multistep":
+            scheduler = lr_scheduler.MultiStepLR(opt, milestones=lr_policy["steps"], gamma=lr_policy["gamma"])
+        case "cosine":
+            scheduler = lr_scheduler.CosineAnnealingLR(opt, T_max=lr_policy["n_epochs"])
+        case _:
+            raise NotImplementedError("Learning rate policy {} not implemented.".format(lr_policy["type"]))
     return scheduler
 
 
