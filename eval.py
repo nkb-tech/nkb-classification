@@ -87,7 +87,6 @@ def main():
     classes = val_loader.dataset.classes
     device = torch.device(cfg.device)
     model = get_model(cfg.model, classes, device, compile=cfg.compile)
-    model.set_backbone_state("freeze")
     # load weights
     model.load_state_dict(torch.load(cfg.model["checkpoint"], map_location="cpu"))
     criterion = get_loss(cfg.criterion, cfg.device)
