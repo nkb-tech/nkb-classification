@@ -81,16 +81,17 @@ def log_targetwise_metrics(experiment, target_name, label_names, epoch, metrics,
         step=epoch,
     )
     if n_classes > 2:
-        for roc_auc, class_name in zip(roc_auc, label_names):
+        for roc_auc_, class_name in zip(roc_auc, label_names):
             experiment.log_metric(
                 f"{target_name} {fold} ROC AUC, {class_name}".lstrip(),
-                roc_auc,
+                roc_auc_,
                 epoch=epoch,
                 step=epoch,
             )
+        mean_roc_auc = np.nan if np.all(np.isnan(roc_auc)) else np.nanmean(roc_auc)
         experiment.log_metric(
             f"{target_name} {fold} ROC AUC".lstrip(),
-            np.mean(roc_auc),
+            mean_roc_auc,
             epoch=epoch,
             step=epoch,
         )
