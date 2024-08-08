@@ -19,6 +19,14 @@ def compute_targetwise_metrics(epoch_results, target_name=None):
     n_classes = confidences.shape[1]
     gt_classes = np.unique(ground_truth)
     gt_n_classes = len(gt_classes)
+    if gt_n_classes < n_classes:
+        warnings.warn(
+                "\n"
+                "Number of classes in ground truth "
+                "is less than number of classes in predicted confidences. \n"
+                "Some of ROC AUC metric values will be NaN"
+                "\n"
+            )
 
     epoch_acc = balanced_accuracy_score(ground_truth, predictions)
 
