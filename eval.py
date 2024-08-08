@@ -86,10 +86,8 @@ def main():
     val_loader = get_dataset(cfg.val_data, cfg.val_pipeline)
     classes = val_loader.dataset.classes
     device = torch.device(cfg.device)
-    model = get_model(cfg.model, classes, device, compile=cfg.compile)
-    # load weights
-    model.load_state_dict(torch.load(cfg.model["checkpoint"], map_location="cpu"))
-    criterion = get_loss(cfg.criterion, cfg.device)
+    model = get_model(cfg.model, classes, device=device, compile=cfg.compile, **cfg.model)
+    criterion = get_loss(cfg.criterion, device)
     metrics = evaluate(model, val_loader, criterion, device, cfg)
 
     save_path = Path(cfg.save_path)

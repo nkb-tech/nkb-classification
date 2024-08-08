@@ -157,14 +157,17 @@ class MultitaskClassifier(nn.Module):
         return emb_model, emb_size
 
 
-def get_model(cfg_model, classes, device="cpu", compile: bool = False):
-    if cfg_model["task"] == "single":
-        model = SingletaskClassifier(cfg_model, classes)
-    elif cfg_model["task"] == "multi":
-        model = MultitaskClassifier(cfg_model, classes)
-    chkpt = cfg_model.get("checkpoint", None)
-    if chkpt is not None:
-        model.load_state_dict(torch.load(chkpt, map_location="cpu"))
+def get_model(cfg_model, classes, device="cpu", scripted: bool = False, compile: bool = False, **kwargs):
+    if scripted:
+        model = torch.load(cfg_model["checkpoint"], map_location="cpu")
+    else:
+        if cfg_model["task"] == "single":
+            model = SingletaskClassifier(cfg_model, classes)
+        elif cfg_model["task"] == "multi":
+            model = MultitaskClassifier(cfg_model, classes)
+        chkpt = cfg_model.get("checkpoint", None)
+        if chkpt is not None:
+            model.load_state_dict(torch.load(chkpt, map_location="cpu"))
     model.to(device)
     if compile:
         model = torch.compile(model, dynamic=True)
