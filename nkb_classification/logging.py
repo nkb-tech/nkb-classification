@@ -208,7 +208,7 @@ def log_grads(experiment, epoch, metrics_grad_log):
     return metrics_grad_log
 
 
-class TrainLogger:
+class BaseLogger:
     __slots__ = (
         "cfg",
         "epoch_running_loss",
@@ -217,30 +217,28 @@ class TrainLogger:
         "epoch_ground_truth",
         "target_names",
         "label_names",
-        "comet_experiment",
-        "local_experiment",
         "task",
         "class_to_idx",
     )
 
-    def __init__(self, cfg, comet_experiment, local_experiment, class_to_idx):
+    def __init__(self, cfg, class_to_idx):
 
         assert cfg.task in ("single", "multi")
 
         self.cfg = cfg
-        self.comet_experiment = comet_experiment
-        self.local_experiment = local_experiment
         self.task = cfg.task
         self.class_to_idx = class_to_idx
 
-    def log_images_at_start(self, loader, n_batches=3):
+        if self.task == "single":
+            self.target_names = None
+            self.label_names = list(self.class_to_idx.keys())
 
-        for batch_num, (img_batch, _) in enumerate(loader):
-            if batch_num + 1 > n_batches:
-                break
-            log_images(
-                experiment=self.local_experiment, name=f"train_batch", epoch=batch_num + 1, batch_to_log=img_batch
-            )
+        elif self.task == "multi":
+            self.target_names = [*sorted(self.class_to_idx)]
+            self.label_names = {
+                target_name: [*self.class_to_idx[target_name].keys()] for target_name in self.target_names
+            }
+
 
     def init_iter_logs(self):
 
@@ -250,22 +248,12 @@ class TrainLogger:
             self.epoch_predictions = []
             self.epoch_ground_truth = []
 
-            self.target_names = None
-            # import ipdb; ipdb.set_trace()
-            self.label_names = list(self.class_to_idx.keys())
-
         elif self.task == "multi":
             self.epoch_running_loss = defaultdict(list)
             self.epoch_confidences = defaultdict(list)
             self.epoch_predictions = defaultdict(list)
             self.epoch_ground_truth = defaultdict(list)
-
-            self.target_names = [*sorted(self.class_to_idx)]
-
-            self.label_names = {
-                target_name: [*self.class_to_idx[target_name].keys()] for target_name in self.target_names
-            }
-
+    
     def log_iter(self, pred, true, loss):
         assert type(pred) == type(true)
 
@@ -295,6 +283,38 @@ class TrainLogger:
             "predictions": self.epoch_predictions,
             "ground_truth": self.epoch_ground_truth,
         }
+
+
+class TrainLogger(BaseLogger):
+    __slots__ = (
+        "cfg",
+        "epoch_running_loss",
+        "epoch_confidences",
+        "epoch_predictions",
+        "epoch_ground_truth",
+        "target_names",
+        "label_names",
+        "comet_experiment",
+        "local_experiment",
+        "task",
+        "class_to_idx",
+    )
+
+    def __init__(self, cfg, class_to_idx, comet_experiment, local_experiment, ):
+
+        super().__init__(cfg, class_to_idx)
+
+        self.comet_experiment = comet_experiment
+        self.local_experiment = local_experiment
+
+    def log_images_at_start(self, loader, n_batches=3):
+
+        for batch_num, (img_batch, _) in enumerate(loader):
+            if batch_num + 1 > n_batches:
+                break
+            log_images(
+                experiment=self.local_experiment, name=f"train_batch", epoch=batch_num + 1, batch_to_log=img_batch
+            )
 
     def log_epoch(self, epoch, train_results, val_results):
 
