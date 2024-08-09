@@ -159,7 +159,7 @@ class MultitaskClassifier(nn.Module):
 
 def get_model(cfg_model, classes, device="cpu", scripted: bool = False, compile: bool = False, **kwargs):
     if scripted:
-        model = torch.load(cfg_model["checkpoint"], map_location="cpu")
+        model = torch.jit.load(cfg_model["checkpoint"], map_location="cpu")
     else:
         if cfg_model["task"] == "single":
             model = SingletaskClassifier(cfg_model, classes)
