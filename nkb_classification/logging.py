@@ -231,13 +231,20 @@ class BaseLogger:
 
         if self.task == "single":
             self.target_names = None
-            self.label_names = list(self.class_to_idx.keys())
+
+            self.label_names = list(None for _ in range(len(self.class_to_idx)))
+            for cls, idx in self.class_to_idx.items():
+                self.label_names[idx] = cls
 
         elif self.task == "multi":
-            self.target_names = [*sorted(self.class_to_idx)]
+            self.target_names = sorted(self.class_to_idx)
             self.label_names = {
-                target_name: [*self.class_to_idx[target_name].keys()] for target_name in self.target_names
+                target_name: list(None for _ in range(len(self.class_to_idx[target_name])))
+                for target_name in self.target_names
             }
+            for target_name in self.target_names:
+                for cls, idx in self.class_to_idx[target_name].items():
+                    self.label_names[target_name][idx] = cls
 
     def init_iter_logs(self):
 
