@@ -1,11 +1,8 @@
 import argparse
 import json
-from collections import defaultdict
 from pathlib import Path
 
-import numpy as np
 import torch
-from tqdm import tqdm
 
 from nkb_classification.engine import val_epoch
 from nkb_classification.dataset import get_dataset
@@ -22,7 +19,7 @@ def evaluate(model, val_loader, criterion, device, cfg):
     val_logger = BaseLogger(cfg, class_to_idx)
 
     val_results = val_epoch(model, val_loader, criterion, device, cfg, val_logger)
-    val_metrics = compute_metrics(val_results)
+    val_metrics = compute_metrics(cfg, val_results)
 
     return val_metrics
 

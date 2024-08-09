@@ -215,6 +215,7 @@ class BaseLogger:
         "epoch_confidences",
         "epoch_predictions",
         "epoch_ground_truth",
+        "epoch_images_example",
         "target_names",
         "label_names",
         "task",
@@ -305,6 +306,7 @@ class TrainLogger(BaseLogger):
         "epoch_confidences",
         "epoch_predictions",
         "epoch_ground_truth",
+        "epoch_images_example",
         "target_names",
         "label_names",
         "comet_experiment",
@@ -313,7 +315,7 @@ class TrainLogger(BaseLogger):
         "class_to_idx",
     )
 
-    def __init__(self, cfg, class_to_idx, comet_experiment, local_experiment, ):
+    def __init__(self, cfg, comet_experiment, local_experiment, class_to_idx):
 
         super().__init__(cfg, class_to_idx)
 
