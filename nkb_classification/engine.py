@@ -36,7 +36,6 @@ def train_epoch(
         metrics_grad_log = defaultdict(list)
     pbar = TrainPbar(train_loader, leave=False, desc="Training", cfg=cfg)
 
-    batch_to_log = None
     for img, target in pbar:
         img = img.to(device)
         optimizer.zero_grad()
@@ -73,14 +72,12 @@ def train_epoch(
 
             metrics_grad_log["Gradients/Total"].append(total_grad)
 
-        if batch_to_log is None:
-            batch_to_log = img.to("cpu")
+        epoch_logger.log_images_if_needed(img)
 
     if scheduler is not None:
         scheduler.step()
 
     results = epoch_logger.get_epoch_results()
-    results["images"] = batch_to_log
 
     if cfg.log_gradients:
         results["metrics_grad_log"] = metrics_grad_log
@@ -100,7 +97,6 @@ def val_epoch(
     model.eval()
     epoch_logger.init_iter_logs()
 
-    batch_to_log = None
     for img, target in tqdm(val_loader, leave=False, desc="Evaluating"):
         img = img.to(device)
         with torch.autocast(
@@ -114,11 +110,8 @@ def val_epoch(
             loss = criterion(preds, target)
 
         epoch_logger.log_iter(preds, target, loss)
-
-        if batch_to_log is None:
-            batch_to_log = img.to("cpu")
+        epoch_logger.log_images_if_needed(img)
 
     results = epoch_logger.get_epoch_results()
-    results["images"] = batch_to_log
 
     return results

@@ -239,8 +239,9 @@ class BaseLogger:
                 target_name: [*self.class_to_idx[target_name].keys()] for target_name in self.target_names
             }
 
-
     def init_iter_logs(self):
+
+        self.epoch_images_example = None
 
         if self.task == "single":
             self.epoch_running_loss = []
@@ -276,12 +277,17 @@ class BaseLogger:
             self.epoch_predictions.extend(pred.argmax(dim=-1).detach().cpu().numpy().tolist())
             self.epoch_running_loss.append(loss.item())
 
+    def log_images_if_needed(self, images):
+        if self.epoch_images_example is None:
+            self.epoch_images_example = images.to("cpu")
+
     def get_epoch_results(self):
         return {
             "running_loss": self.epoch_running_loss,
             "confidences": self.epoch_confidences,
             "predictions": self.epoch_predictions,
             "ground_truth": self.epoch_ground_truth,
+            "images": self.epoch_images_example,
         }
 
 
