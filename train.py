@@ -6,6 +6,7 @@ import torch
 from torch.cuda.amp import GradScaler
 from tqdm import tqdm
 
+from nkb_classification.engine import train_epoch, val_epoch
 from nkb_classification.dataset import get_dataset
 from nkb_classification.logging import TrainLogger, get_comet_experiment, get_local_experiment
 from nkb_classification.losses import get_loss

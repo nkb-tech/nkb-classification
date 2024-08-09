@@ -76,6 +76,15 @@ def sort_df_columns_titled(df):
     return df_sorted
 
 
+def convert_dict_types_recursive(_dict):
+    for key in _dict:
+        if isinstance(_dict[key], dict):
+            _dict[key] = convert_dict_types_recursive(_dict[key])
+        elif isinstance(_dict[key], np.ndarray):
+            _dict[key] = list(_dict[key])
+    return _dict
+
+
 def export_formats():
     """YOLOv8 export formats.
     Taken from https://github.com/ultralytics/ultralytics/blob/70c400ee158fc52361e6d38e4b93f55fff21edd7/ultralytics/engine/exporter.py#L79
