@@ -3,45 +3,100 @@ import cv2
 from albumentations.pytorch import ToTensorV2
 
 show_full_current_loss_in_terminal = False
+log_gradients = False  # to include model gradients in loss
 
-compile = False  # Is not working correctly yet, so set to False
-log_gradients = True
-n_epochs = 1 + 1
 device = "cuda:0"
 enable_mixed_presicion = True
 enable_gradient_scaler = True
+compile = False  # not working correctly yet, so set to false
 
-task = "multi"
 
-target_names = [
-    "dog_size",
-    "dog_fur",
-    "dog_color",
-    "dog_ear_type",
-    "dog_muzzle_len",
-    "dog_leg_len",
-]
-
-experiment_name = "demo_train_8"
+experiment_name = "train_multitask_run_1"
 
 experiment = {
-    "comet": {
-        "comet_api_cfg_path": "configs/comet_api_cfg.yml",
+    "comet": {  # for logging to comet-ml service (optional)
+        "comet_api_cfg_path": "configs/comet_api_cfg.yml",  # should contain 'api_key', 'workspace' and 'project_name' fields
         "auto_metric_logging": False,
         "name": experiment_name,
     },
-    "local": {
-        "path": f"runs/{experiment_name}",
+    "local": { # to save model weights and metrics locally
+        "path": f"data/runs/{experiment_name}",
     },
 }
 
-img_size = 224
+"""
+Here you describe train data.
+
+type: AnnotatedSingletaskDataset, AnnotatedMultitaskDataset, GroupsDataset, default - ImageFolder.
+
+For AnnotatedSingletaskDataset and AnnotatedMultitaskDataset the argumatns basically are:
+annotations_file: Path to csv labels in for AnnotatedSingletaskDataset and AnnotatedMultitaskDataset.
+image_base_dir: Base directory of images. Paths in 'path' column must be relative to this dir. Set None if you have global dirs in your csv file.
+target_column / target_names : column names(-s) with class labels.
+classes: optional way to provide classnames. If not given, will be infered from annotations
+fold : train, val
+weighted_sampling : works only for single task
+
+and some pytorch dataloader parameters
+"""
+
+task = "multi"
+
+annotations_path = "data/annotations.csv"
+image_base_dir = "data/images"
+
+target_names = ["dog_size", "dog_color"]
+classes = {  # optional
+    "dog_size": ["bolshoj", "malenkij"],
+    "dog_color": ["chernyj", "belyj"]
+}
+
+train_data = {
+    "type": "AnnotatedMultitaskDataset",
+    "annotations_file": annotations_path,
+    "image_base_dir": image_base_dir,
+    "target_names": target_names,
+    "classes": classes,
+    "fold": "train",
+    "weighted_sampling": False,
+    "shuffle": True,
+    "batch_size": 64,
+    "num_workers": 8,
+    "drop_last": True,
+}
+
+val_data = {
+    "type": "AnnotatedMultitaskDataset",
+    "annotations_file": annotations_path,
+    "image_base_dir": image_base_dir,
+    "target_names": target_names,
+    "classes": classes,
+    "fold": "val",
+    "weighted_sampling": False,
+    "shuffle": False,
+    "batch_size": 64,
+    "num_workers": 8,
+    "drop_last": False,
+}
+
+"""
+Here you describe the transformations applied to the processed images
+"""
+
+img_size = 128
 
 train_pipeline = A.Compose(
     [
         A.LongestMaxSize(img_size, always_apply=True),
-        A.PadIfNeeded(img_size, img_size, always_apply=True, border_mode=cv2.BORDER_CONSTANT, value=0),
-        A.MotionBlur(blur_limit=3, allow_shifted=True, p=0.5),
+        A.PadIfNeeded(
+            img_size,
+            img_size,
+            always_apply=True,
+            border_mode=cv2.BORDER_CONSTANT,
+            value=0,
+        ),
+        A.HorizontalFlip(p=0.5),
+        A.VerticalFlip(p=0.5),
         A.RandomBrightnessContrast(
             brightness_limit=(-0.2, 0.2),
             contrast_limit=(0.1, -0.5),
@@ -53,14 +108,6 @@ train_pipeline = A.Compose(
             val_shift_limit=50,
             p=0.5,
         ),
-        A.RandomShadow(p=0.5),
-        A.RandomFog(
-            fog_coef_lower=0.3,
-            fog_coef_upper=0.5,
-            alpha_coef=0.28,
-            p=0.5,
-        ),
-        A.RandomRain(p=0.5),
         A.CoarseDropout(
             max_holes=4,
             min_holes=1,
@@ -92,42 +139,12 @@ val_pipeline = A.Compose(
 )
 
 """
-Here you describe train data.
-type: AnnotatedSingletaskDataset, AnnotatedMultitaskDataset, GroupsDataset, default - ImageFolder.
-annotations_file: Path to csv labels in for AnnotatedSingletaskDataset and AnnotatedMultitaskDataset.
-image_base_dir: Base directory of images. Paths in 'path' column must be relative to this dir. Set None if you have global dirs in your csv file.
-target_column / target_names : column names(-s) with class labels.
-fold : train, val
-weighted_sampling : works only for single task
+Here you describe the model and optimizers
 """
-
-train_data = {
-    "type": "AnnotatedMultitaskDataset",
-    "annotations_file": "/home/slava/nkb-classification/jupyters_exps/annotation_high_res_video_split_v2_slava.csv",
-    "target_names": target_names,
-    "fold": "train",
-    "weighted_sampling": False,
-    "shuffle": True,
-    "batch_size": 32,
-    "num_workers": 10,
-    "size": img_size,
-}
-
-val_data = {
-    "type": "AnnotatedMultitaskDataset",
-    "annotations_file": "/home/slava/nkb-classification/jupyters_exps/annotation_high_res_video_split_v2_slava.csv",
-    "target_names": target_names,
-    "fold": "val",
-    "weighted_sampling": False,
-    "shuffle": True,
-    "batch_size": 32,
-    "num_workers": 8,
-    "size": img_size,
-}
 
 model = {
     "task": task,
-    "model": "unicom ViT-B/32",
+    "model": "unicom ViT-B/32",  # possible to use models from unicom library
     "pretrained": True,
     "backbone_dropout": 0.1,
     "classifier_dropout": 0.1,
@@ -142,14 +159,15 @@ optimizer = {
     "classifier_lr": 1e-4,
 }
 
+n_epochs = 5
+
 lr_policy = {
     "type": "multistep",
-    "steps": [
-        20,
-    ],
+    "steps": [20,],
     "gamma": 0.1,
 }
 
 backbone_state_policy = {0: "freeze", 5: "unfreeze", 10: "freeze"}
 
-criterion = {"task": task, "type": "CrossEntropyLoss"}
+criterion = {"task": task, "type": "FocalLoss", "gamma": 1}
+

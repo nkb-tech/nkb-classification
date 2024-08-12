@@ -3,38 +3,112 @@ import cv2
 from albumentations.pytorch import ToTensorV2
 
 show_full_current_loss_in_terminal = False
+log_gradients = False  # to include model gradients in loss
 
-compile = False  # Is not working correctly yet, so set to False
-log_gradients = True
-n_epochs = 20 + 1
-device = "cuda:1"
+device = "cuda:0"
 enable_mixed_presicion = True
 enable_gradient_scaler = True
+compile = False  # not working correctly yet, so set to false
 
-task = "single"
 
-target_column = "label"
-
-experiment_name = "128_sputnik_6k_+spaces1000_resnet14t_focal_gamma_1_w"
+experiment_name = "train_singletask_run_1"
 
 experiment = {
-    "comet": {
-        "comet_api_cfg_path": "configs/comet_api_cfg.yml",
+    "comet": {  # for logging to comet-ml service (optional)
+        "comet_api_cfg_path": "configs/comet_api_cfg.yml",  # should contain 'api_key', 'workspace' and 'project_name' fields
         "auto_metric_logging": False,
         "name": experiment_name,
     },
-    "local": {
-        "path": f"/home/a.nevarko/projects/parking/models/occupancy/{experiment_name}",
+    "local": { # to save model weights and metrics locally
+        "path": f"data/runs/{experiment_name}",
     },
 }
 
-# experiment = None
+"""
+Here you describe train data.
+
+type: AnnotatedSingletaskDataset, AnnotatedMultitaskDataset, GroupsDataset, default - ImageFolder.
+
+For AnnotatedSingletaskDataset and AnnotatedMultitaskDataset the argumatns basically are:
+annotations_file: Path to csv labels in for AnnotatedSingletaskDataset and AnnotatedMultitaskDataset.
+image_base_dir: Base directory of images. Paths in 'path' column must be relative to this dir. Set None if you have global dirs in your csv file.
+target_column / target_names : column names(-s) with class labels.
+classes: optional way to provide classnames. If not given, will be infered from annotations
+fold : train, val
+weighted_sampling : works only for single task
+
+and some pytorch dataloader parameters
+"""
+
+task = "single"
+
+annotations_path = "data/annotations.csv"
+image_base_dir = "data/images"
+
+target_column = "label"
+classes = ["first_class", "second_class"]  # optional
+
+train_data = {
+    "type": "AnnotatedSingletaskDataset",
+    "annotations_file": annotations_path,
+    "image_base_dir": image_base_dir,
+    "target_column": target_column,
+    "classes": classes,
+    "fold": "train",
+    "weighted_sampling": True,
+    "shuffle": True,
+    "batch_size": 64,
+    "num_workers": 8,
+    "drop_last": True,
+}
+
+val_data = {
+    "type": "AnnotatedSingletaskDataset",
+    "annotations_file": annotations_path,
+    "image_base_dir": image_base_dir,
+    "target_column": target_column,
+    "classes": classes,
+    "fold": "val",
+    "weighted_sampling": False,
+    "shuffle": False,
+    "batch_size": 64,
+    "num_workers": 8,
+    "drop_last": False,
+}
+
+"""
+For the ImageFolder dataset the argument is:
+root: path to the folder where subfolders with images of each class are present
+"""
+
+# train_data = {
+#     "type": "ImageFolder",
+#     "root": "data/by_folders/train",
+#     "weighted_sampling": True,
+#     "shuffle": True,
+#     "batch_size": 64,
+#     "num_workers": 8,
+#     "drop_last": True,
+# }
+
+# val_data = {
+#     "type": "ImageFolder",
+#     "root": "data/by_folders/val",
+#     "weighted_sampling": False,
+#     "shuffle": False,
+#     "batch_size": 64,
+#     "num_workers": 8,
+#     "drop_last": False,
+# }
+
+"""
+Here you describe the transformations applied to the processed images
+"""
 
 img_size = 128
 
 train_pipeline = A.Compose(
     [
-        # A.Resize(img_size, img_size, interpolation=cv2.INTER_AREA),
         A.LongestMaxSize(img_size, always_apply=True),
         A.PadIfNeeded(
             img_size,
@@ -43,7 +117,6 @@ train_pipeline = A.Compose(
             border_mode=cv2.BORDER_CONSTANT,
             value=0,
         ),
-        # A.MotionBlur(blur_limit=3, allow_shifted=True, p=0.5),
         A.HorizontalFlip(p=0.5),
         A.VerticalFlip(p=0.5),
         A.RandomBrightnessContrast(
@@ -57,14 +130,6 @@ train_pipeline = A.Compose(
             val_shift_limit=50,
             p=0.5,
         ),
-        # A.RandomShadow(p=0.5),
-        # A.RandomFog(
-        #     fog_coef_lower=0.3,
-        #     fog_coef_upper=0.5,
-        #     alpha_coef=0.28,
-        #     p=0.5,
-        # ),
-        # A.RandomRain(p=0.5),
         A.CoarseDropout(
             max_holes=4,
             min_holes=1,
@@ -85,7 +150,6 @@ train_pipeline = A.Compose(
 
 val_pipeline = A.Compose(
     [
-        # A.Resize(img_size, img_size, interpolation=cv2.INTER_AREA),
         A.LongestMaxSize(img_size, always_apply=True),
         A.PadIfNeeded(img_size, img_size, always_apply=True, border_mode=cv2.BORDER_CONSTANT, value=0),
         A.Normalize(
@@ -97,74 +161,14 @@ val_pipeline = A.Compose(
 )
 
 """
-Here you describe train data.
-type: AnnotatedSingletaskDataset, AnnotatedMultitaskDataset, GroupsDataset, default - ImageFolder.
-annotations_file: Path to csv labels in for AnnotatedSingletaskDataset and AnnotatedMultitaskDataset.
-image_base_dir: Base directory of images. Paths in 'path' column must be relative to this dir. Set None if you have global dirs in your csv file.
-target_column / target_names : column names(-s) with class labels.
-fold : train, val
-weighted_sampling : works only for single task
+Here you describe the model and optimizers
 """
-
-train_data = {
-    "type": "AnnotatedSingletaskDataset",
-    "annotations_file": "/home/a.nevarko/projects/datasets/parking/sputnik_parking/sputnik6k_+spaces100_tr_sp_1k_val.csv",
-    # "image_base_dir": '/home/slava/hdd/hdd4/Datasets/petsearch/Dog_expo_Vladimir_02_07_2023_mp4_frames/multiclass_v4/images',
-    "target_column": target_column,
-    # "root": "/home/a.nevarko/projects/datasets/parking/kaggle/pklot_original/spaces1000/train",
-    "fold": "train",
-    "weighted_sampling": True,
-    "shuffle": True,
-    "batch_size": 32,
-    "num_workers": 10,
-    "size": img_size,
-}
-
-# train_data = {
-#     "type": "AnnotatedSingletaskDataset",
-#     "annotations_file": "/home/slava/hdd/hdd4/Datasets/petsearch/Dog_expo_Vladimir_02_07_2023_mp4_frames/demo_dataset.csv",
-#     "image_base_dir": '/home/slava/hdd/hdd4/Datasets/petsearch/Dog_expo_Vladimir_02_07_2023_mp4_frames/multiclass_v4/images',
-#     "target_column": target_column,
-#     "fold": "train",
-#     "weighted_sampling": True,
-#     "shuffle": True,
-#     "batch_size": 32,
-#     "num_workers": 10,
-#     "size": img_size,
-# }
-
-val_data = {
-    "type": "AnnotatedSingletaskDataset",
-    "annotations_file": "/home/a.nevarko/projects/datasets/parking/sputnik_parking/sputnik6k_+spaces100_tr_sp_1k_val.csv",
-    # "image_base_dir": '/home/slava/hdd/hdd4/Datasets/petsearch/Dog_expo_Vladimir_02_07_2023_mp4_frames/multiclass_v4/images',
-    # "root": "/home/a.nevarko/projects/datasets/parking/kaggle/pklot_original/spaces1000/val",
-    "target_column": target_column,
-    "fold": "val",
-    "weighted_sampling": False,
-    "shuffle": True,
-    "batch_size": 32,
-    "num_workers": 10,
-    "size": img_size,
-}
-
-# val_data = {
-#     "type": "AnnotatedSingletaskDataset",
-#     "annotations_file": "/home/slava/hdd/hdd4/Datasets/petsearch/Dog_expo_Vladimir_02_07_2023_mp4_frames/demo_dataset.csv",
-#     "image_base_dir": '/home/slava/hdd/hdd4/Datasets/petsearch/Dog_expo_Vladimir_02_07_2023_mp4_frames/multiclass_v4/images',
-#     "target_column": target_column,
-#     "fold": "val",
-#     "weighted_sampling": True,
-#     "shuffle": True,
-#     "batch_size": 32,
-#     "num_workers": 8,
-#     "size": img_size,
-# }
 
 model = {
     "task": task,
     "model": "resnet14t",
-    # "checkpoint": "/home/a.nevarko/projects/parking/models/occupancy/96_sputnik_3k_tr+spaces1000_resnet14_focal_gamma_1/last.pth",
     "pretrained": True,
+    # "checkpoint": "previous_run/model_Weights/last.pth",  # optional
     "backbone_dropout": 0.1,
     "classifier_dropout": 0.1,
     "classifier_initialization": "kaiming_normal_",
@@ -178,14 +182,13 @@ optimizer = {
     "classifier_lr": 1e-4,
 }
 
+n_epochs = 5
+
 lr_policy = {
-    "type": "multistep",
-    "steps": [
-        20,
-    ],
-    "gamma": 0.1,
+    "type": "cosine",
+    "n_epochs": n_epochs,
 }
 
 backbone_state_policy = {0: "freeze", 5: "unfreeze", 10: "freeze"}
 
-criterion = {"task": task, "type": "FocalLoss", "gamma": 1}
+criterion = {"task": task, "type": "CrossEntropyLoss"}
