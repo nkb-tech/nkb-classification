@@ -1,6 +1,6 @@
 import argparse
 from pathlib import Path
-from typing import Union
+from typing import Union, Any
 
 import numpy as np
 import pandas as pd
@@ -9,17 +9,31 @@ from tqdm import tqdm
 
 from nkb_classification.dataset import get_inference_dataset
 from nkb_classification.model import get_model
-from nkb_classification.utils import read_py_config
+from nkb_classification.utils import load_classes, get_classes_configs, read_py_config
 
 
 @torch.no_grad()
 def inference(
     model: torch.nn.Module,
     loader: torch.utils.data.DataLoader,
+    classes: Union[list, dict],
     save_path: str,
     device: Union[torch.device, str],
+    cfg: Any
 ) -> None:
-    columns = loader.dataset.target_names.copy()
+
+    _, idx_to_class = get_classes_configs(classes)
+
+    task = cfg.task
+    assert task in ("single", "multi")
+    if task == "single":
+        target_column = cfg.target_column
+        columns = [target_column]
+    elif task == "multi":
+        target_names = cfg.target_names
+        assert target_names == list(classes.keys())
+        columns = target_names.copy()
+
     columns.append("path")
     inference_annotations = pd.DataFrame(columns=columns)
 
@@ -29,11 +43,17 @@ def inference(
         imgs = imgs.float().to(device)
         preds = model(imgs)
         batch_annotations = []
-        for target_name in loader.dataset.target_names:
-            pred = preds[target_name]
-            pred = pred.softmax(dim=-1).argmax(dim=1).cpu().numpy().tolist()
-            pred = [loader.dataset.idx_to_class[target_name][idx] for idx in pred]
+        if task == "single":
+            pred = preds
+            pred = pred.argmax(dim=-1).cpu().numpy().tolist()
+            pred = [idx_to_class[idx] for idx in pred]
             batch_annotations.append(pred)
+        elif task == "multi":
+            for target_name in target_names:
+                pred = preds[target_name]
+                pred = pred.argmax(dim=-1).cpu().numpy().tolist()
+                pred = [idx_to_class[target_name][idx] for idx in pred]
+                batch_annotations.append(pred)
         batch_annotations.append(list(img_paths))
         batch_annotations = np.vstack(batch_annotations).T
         inference_annotations = pd.concat(
@@ -63,14 +83,17 @@ def main():
     # get dataloader
     data_loader = get_inference_dataset(cfg.inference_data, cfg.inference_pipeline)
 
+    # load classes config
+    classes = load_classes(cfg.classes)
+
     # get model
     device = torch.device(cfg.device)
-    classes = data_loader.dataset.classes
     model = get_model(cfg.model, classes, device, compile=cfg.compile)
 
     save_path = Path(cfg.save_path)
     save_path.mkdir(exist_ok=True, parents=True)
-    inference(model, data_loader, save_path, device)
+
+    inference(model, data_loader, classes, save_path, device)
 
 
 if __name__ == "__main__":

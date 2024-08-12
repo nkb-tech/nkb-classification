@@ -107,9 +107,6 @@ class InferDataset(Dataset):
         ).__init__()
         self.ext = [".jpg", ".jpeg", ".png"]
         self.folder = Path(folder_path)
-        self.classes = load_classes(classes)
-
-        self.class_to_idx, self.idx_to_class = get_classes_configs(self.classes)
 
         self.transform = transform  # some infer transform
         self.imgs = [str(p) for p in self.folder.iterdir() if p.suffix.lower() in self.ext]
