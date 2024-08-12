@@ -31,7 +31,7 @@ def inference(
         columns = [target_column]
     elif task == "multi":
         target_names = cfg.target_names
-        assert target_names == list(classes.keys())
+        assert set(target_names) == set(classes.keys())
         columns = target_names.copy()
 
     columns.append("path")
@@ -98,7 +98,7 @@ def main():
     save_path = Path(cfg.save_path)
     save_path.mkdir(exist_ok=True, parents=True)
 
-    inference(model, data_loader, classes, save_path, device)
+    inference(model, data_loader, classes, save_path, device, cfg)
 
 
 if __name__ == "__main__":
