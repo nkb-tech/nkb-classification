@@ -41,7 +41,12 @@ def inference(
 
     for imgs, img_paths in tqdm(loader, leave=False, desc="Inference"):
         imgs = imgs.float().to(device)
-        preds = model(imgs)
+        with torch.autocast(
+            device_type="cuda",
+            dtype=torch.float16,
+            enabled=cfg.enable_mixed_presicion,
+        ):
+            preds = model(imgs)
         batch_annotations = []
         if task == "single":
             pred = preds
