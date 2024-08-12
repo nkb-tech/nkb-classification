@@ -157,8 +157,8 @@ class MultitaskClassifier(nn.Module):
         return emb_model, emb_size
 
 
-def get_model(cfg_model, classes, device="cpu", scripted: bool = False, compile: bool = False, **kwargs):
-    if scripted:
+def get_model(cfg_model, classes, device="cpu", compile: bool = False):
+    if cfg_model.get("scripted", False):
         model = torch.jit.load(cfg_model["checkpoint"], map_location="cpu")
     else:
         if cfg_model["task"] == "single":

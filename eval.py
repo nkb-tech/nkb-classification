@@ -33,7 +33,7 @@ def main():
     val_loader = get_dataset(cfg.val_data, cfg.val_pipeline)
     classes = val_loader.dataset.classes
     device = torch.device(cfg.device)
-    model = get_model(cfg.model, classes, device=device, compile=cfg.compile, **cfg.model)
+    model = get_model(cfg.model, classes, device=device, compile=cfg.compile)
     criterion = get_loss(cfg.criterion, device)
     metrics = evaluate(model, val_loader, criterion, device, cfg)
 
