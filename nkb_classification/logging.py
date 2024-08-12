@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 import torch
 import yaml
+import json
 from comet_ml import Experiment as CometExperiment
 from torchvision import transforms
 from torchvision.utils import make_grid
@@ -321,6 +322,12 @@ class TrainLogger(BaseLogger):
 
         self.comet_experiment = comet_experiment
         self.local_experiment = local_experiment
+
+        self._log_classes()
+
+    def _log_classes(self):
+        with open(self.local_experiment.path / "classes.json", "w") as f:
+            json.dump(self.label_names, f)
 
     def log_images_at_start(self, loader, n_batches=3):
 
