@@ -3,6 +3,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+import json
 from torch.optim import SGD, Adam, NAdam, RAdam, SparseAdam, lr_scheduler
 
 
@@ -61,6 +62,43 @@ def get_scheduler(opt, lr_policy):
         case _:
             raise NotImplementedError("Learning rate policy {} not implemented.".format(lr_policy["type"]))
     return scheduler
+
+
+def save_classes(classes, save_path):
+    if isinstance(classes, (list, dict)):
+        with open(save_path, "w") as f:
+            json.dump(classes, f)
+    else:
+        raise NotImplementedError(f"unknown classes config type {type(classes)}")
+
+
+def load_classes(classes):
+    if isinstance(classes, (list, dict)):
+        return classes
+    elif isinstance(classes, (str, Path)):
+        with open(classes, "r") as f:
+            return json.load(f)
+    else:
+        raise NotImplementedError(f"unknown classes config type {type(classes)}")
+
+
+def get_classes_configs(classes):
+    if isinstance(classes, list):
+        class_to_idx = {cls: idx for idx, cls in enumerate(classes)}
+        idx_to_class = {idx: cls for cls, idx in class_to_idx.items()}
+        return class_to_idx, idx_to_class
+    elif isinstance(classes, dict):
+        class_to_idx = {
+            target_name: {cls: idx for idx, cls in enumerate(classes[target_name])}
+            for target_name in classes.keys()
+        }
+        idx_to_class = {
+            target_name: {idx: cls for cls, idx in class_to_idx[target_name].items()}
+            for target_name in classes.keys()
+        }
+        return class_to_idx, idx_to_class
+    else:
+        raise NotImplementedError(f"unknown classes config type {type(classes)}")
 
 
 def read_py_config(path):

@@ -12,7 +12,7 @@ from comet_ml import Experiment as CometExperiment
 from torchvision import transforms
 from torchvision.utils import make_grid
 
-from nkb_classification.utils import sort_df_columns_titled
+from nkb_classification.utils import save_classes, sort_df_columns_titled
 
 
 class LocalExperiment:
@@ -323,11 +323,7 @@ class TrainLogger(BaseLogger):
         self.comet_experiment = comet_experiment
         self.local_experiment = local_experiment
 
-        self._log_classes()
-
-    def _log_classes(self):
-        with open(self.local_experiment.path / "classes.json", "w") as f:
-            json.dump(self.label_names, f)
+        save_classes(self.label_names, self.local_experiment.path / "classes.json")
 
     def log_images_at_start(self, loader, n_batches=3):
 

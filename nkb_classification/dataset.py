@@ -12,6 +12,8 @@ from PIL import Image
 from torch.utils.data import DataLoader, Dataset
 from torchvision.datasets import ImageFolder
 
+from nkb_classification.utils import load_classes, get_classes_configs
+
 
 class ImbalancedDatasetSampler(torch.utils.data.sampler.Sampler):
     """Samples elements randomly from a given list of indices for imbalanced dataset
@@ -96,8 +98,7 @@ class InferDataset(Dataset):
     def __init__(
         self,
         folder_path,
-        train_annotations_file,
-        target_names,
+        classes=None,
         transform=None,
     ):
         super(
@@ -106,23 +107,10 @@ class InferDataset(Dataset):
         ).__init__()
         self.ext = [".jpg", ".jpeg", ".png"]
         self.folder = Path(folder_path)
-        self.train_ann_table = pd.read_csv(
-            train_annotations_file, index_col=0
-        )  # in order to inherit the set of classes
-        # that the model saw during training
-        self.train_ann_table = self.train_ann_table[self.train_ann_table["fold"] == "train"]
-        self.target_names = [*sorted(target_names)]
-        self.classes = {
-            target_name: np.sort(np.unique(self.train_ann_table[target_name].values)).tolist()
-            for target_name in self.target_names
-        }
-        self.class_to_idx = {
-            target_name: {k: i for i, k in enumerate(classes)} for target_name, classes in self.classes.items()
-        }
-        self.idx_to_class = {
-            target_name: {idx: lb for lb, idx in class_to_idx.items()}
-            for target_name, class_to_idx in self.class_to_idx.items()
-        }
+        self.classes = load_classes(classes)
+
+        self.class_to_idx, self.idx_to_class = get_classes_configs(self.classes)
+
         self.transform = transform  # some infer transform
         self.imgs = [str(p) for p in self.folder.iterdir() if p.suffix.lower() in self.ext]
 
@@ -197,19 +185,22 @@ class AnnotatedSingletaskDataset(Dataset):
                           with image paths and their target values
         target_column: name of the column containing class annotations
         fold: which fold in the dataset to work with (train, val, test, -1)
-        trnsform: which transform to apply to the image before returning it in the __getitem__ method
+        transform: which transform to apply to the image before returning it in the __getitem__ method
         image_base_dir: base directory of images. if = None, then absolute paths are expected in 'path' column.
+        classes: optional config of classes (list, dict, or path to json). if None, then will be infered from annotations
     """
 
-    def __init__(self, annotations_file, target_column, fold="test", transform=None, image_base_dir=None, **kwargs):
+    def __init__(self, annotations_file, target_column, fold="test", transform=None, image_base_dir=None, classes=None, **kwargs):
         self.table = pd.read_csv(annotations_file, index_col=0)
         self.table = self.table[self.table["fold"] == fold]
         self.target_column = target_column
-        self.classes = np.sort(np.unique(self.table[target_column].values)).tolist()
 
-        self.class_to_idx = {k: i for i, k in enumerate(self.classes)}
+        if classes is not None:
+            self.classes = load_classes(classes)
+        else:
+            self.classes = np.sort(np.unique(self.table[target_column].values)).tolist()
 
-        self.idx_to_class = {idx: lb for lb, idx in self.class_to_idx.items()}
+        self.class_to_idx, self.idx_to_class = get_classes_configs(self.classes)
 
         self.transform = transform
 
@@ -246,24 +237,25 @@ class AnnotatedMultitaskDataset(Dataset):
                           with image paths and their target values
         target_names: list of target_names to consider
         fold: which fold in the dataset to work with (train, val, test, -1)
-        trnsform: which transform to apply to the image before returning it in the __getitem__ method
+        transform: which transform to apply to the image before returning it in the __getitem__ method
+        classes: optional config of classes (list, dict, or path to json). if None, then will be infered from annotations
     """
 
-    def __init__(self, annotations_file, target_names, fold="test", transform=None, image_base_dir=None, **kwargs):
+    def __init__(self, annotations_file, target_names, fold="test", transform=None, image_base_dir=None, classes=None, **kwargs):
         self.table = pd.read_csv(annotations_file, index_col=0)
         self.table = self.table[self.table["fold"] == fold]
         self.target_names = [*sorted(target_names)]
-        self.classes = {
-            target_name: np.sort(np.unique(self.table[target_name].values)).tolist()
-            for target_name in self.target_names
-        }
-        self.class_to_idx = {
-            target_name: {k: i for i, k in enumerate(classes)} for target_name, classes in self.classes.items()
-        }
-        self.idx_to_class = {
-            target_name: {idx: lb for lb, idx in class_to_idx.items()}
-            for target_name, class_to_idx in self.class_to_idx.items()
-        }
+
+        if classes is not None:
+            self.classes = load_classes(classes)
+        else:
+            self.classes = {
+                target_name: np.sort(np.unique(self.table[target_name].values)).tolist()
+                for target_name in self.target_names
+            }
+
+        self.class_to_idx, self.idx_to_class = get_classes_configs(self.classes)
+
         self.transform = transform
 
         if image_base_dir is not None:
