@@ -205,7 +205,7 @@ class AnnotatedSingletaskDataset(Dataset):
         self.table = pd.read_csv(annotations_file, index_col=0)
         self.table = self.table[self.table["fold"] == fold]
         self.target_column = target_column
-        self.classes = np.unique(self.table[target_column].values)
+        self.classes = np.sort(np.unique(self.table[target_column].values)).tolist()
 
         self.class_to_idx = {k: i for i, k in enumerate(self.classes)}
 
