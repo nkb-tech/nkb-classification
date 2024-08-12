@@ -30,8 +30,8 @@ def train(
     model_path = local_experiment.path / "weights"
     n_epochs = cfg.n_epochs
     best_val_acc = 0
-    class_to_idx = train_loader.dataset.class_to_idx
-    train_logger = TrainLogger(cfg, comet_experiment, local_experiment, class_to_idx)
+    classes = train_loader.dataset.classes
+    train_logger = TrainLogger(cfg, comet_experiment, local_experiment, classes)
     train_logger.log_images_at_start(train_loader)
     scaler = GradScaler(enabled=cfg.enable_gradient_scaler)
 

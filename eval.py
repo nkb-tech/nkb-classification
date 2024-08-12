@@ -15,8 +15,8 @@ from nkb_classification.utils import read_py_config, convert_dict_types_recursiv
 
 def evaluate(model, val_loader, criterion, device, cfg):
     
-    class_to_idx = val_loader.dataset.class_to_idx
-    val_logger = BaseLogger(cfg, class_to_idx)
+    classes = val_loader.dataset.classes
+    val_logger = BaseLogger(cfg, classes)
 
     val_results = val_epoch(model, val_loader, criterion, device, cfg, val_logger)
     val_metrics = compute_metrics(cfg, val_results)

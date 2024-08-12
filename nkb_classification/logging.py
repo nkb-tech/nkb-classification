@@ -66,13 +66,13 @@ def get_local_experiment(cfg_exp):
     return exp
 
 
-def log_targetwise_metrics(experiment, target_name, label_names, epoch, metrics, fold="Train"):
+def log_targetwise_metrics(experiment, target_name, classes, epoch, metrics, fold="Train"):
     if target_name is None:
         target_name = ""
     acc = metrics["epoch_acc"]
     roc_auc = metrics["epoch_roc_auc"]
     epoch_loss = metrics["epoch_loss"]
-    n_classes = len(label_names)
+    n_classes = len(classes)
     # print(f'{target_name} Epoch {epoch} {fold.lower()} roc_auc {roc_auc:.4f}')
     # print(f'{target_name} Epoch {epoch} {fold.lower()} balanced accuracy {acc:.4f}')
     experiment.log_metric(
@@ -82,7 +82,7 @@ def log_targetwise_metrics(experiment, target_name, label_names, epoch, metrics,
         step=epoch,
     )
     if n_classes > 2:
-        for roc_auc_, class_name in zip(roc_auc, label_names):
+        for roc_auc_, class_name in zip(roc_auc, classes):
             experiment.log_metric(
                 f"{target_name} {fold} ROC AUC, {class_name}".lstrip(),
                 roc_auc_,
@@ -114,7 +114,7 @@ def log_targetwise_metrics(experiment, target_name, label_names, epoch, metrics,
 def log_metrics(
     experiment,
     target_names,
-    label_names,
+    classes,
     epoch,
     metrics,
     fold="Train",
@@ -123,7 +123,7 @@ def log_metrics(
         log_targetwise_metrics(
             experiment,
             None,
-            label_names,
+            classes,
             epoch,
             metrics,
             fold,
@@ -134,7 +134,7 @@ def log_metrics(
             log_targetwise_metrics(
                 experiment,
                 target_name,
-                label_names[target_name],
+                classes[target_name],
                 epoch,
                 metrics[target_name],
                 fold,
@@ -156,7 +156,7 @@ def log_metrics(
 def log_confusion_matrices(
     experiment,
     target_names,
-    label_names,
+    classes,
     epoch,
     results,
     fold="Validation",
@@ -165,7 +165,7 @@ def log_confusion_matrices(
         experiment.log_confusion_matrix(
             results["ground_truth"],
             results["predictions"],
-            labels=tuple(map(str, label_names)),
+            labels=tuple(map(str, classes)),
             title=f"{fold} confusion matrix",
             file_name=f"{fold}-confusion-matrix.json",
             epoch=epoch,
@@ -175,7 +175,7 @@ def log_confusion_matrices(
             experiment.log_confusion_matrix(
                 results["ground_truth"][target_name],
                 results["predictions"][target_name],
-                labels=tuple(map(str, label_names[target_name])),
+                labels=tuple(map(str, classes[target_name])),
                 title=f"{fold} {target_name} confusion matrix",
                 file_name=f"{fold}-{target_name}-confusion-matrix.json",
                 epoch=epoch,
@@ -218,35 +218,23 @@ class BaseLogger:
         "epoch_ground_truth",
         "epoch_images_example",
         "target_names",
-        "label_names",
+        "classes",
         "task",
-        "class_to_idx",
     )
 
-    def __init__(self, cfg, class_to_idx):
+    def __init__(self, cfg, classes):
 
         assert cfg.task in ("single", "multi")
 
         self.cfg = cfg
         self.task = cfg.task
-        self.class_to_idx = class_to_idx
+        self.classes = classes
 
         if self.task == "single":
             self.target_names = None
 
-            self.label_names = list(None for _ in range(len(self.class_to_idx)))
-            for cls, idx in self.class_to_idx.items():
-                self.label_names[idx] = cls
-
         elif self.task == "multi":
             self.target_names = sorted(self.class_to_idx)
-            self.label_names = {
-                target_name: list(None for _ in range(len(self.class_to_idx[target_name])))
-                for target_name in self.target_names
-            }
-            for target_name in self.target_names:
-                for cls, idx in self.class_to_idx[target_name].items():
-                    self.label_names[target_name][idx] = cls
 
     def init_iter_logs(self):
 
@@ -309,21 +297,20 @@ class TrainLogger(BaseLogger):
         "epoch_ground_truth",
         "epoch_images_example",
         "target_names",
-        "label_names",
+        "classes",
+        "task",
         "comet_experiment",
         "local_experiment",
-        "task",
-        "class_to_idx",
     )
 
-    def __init__(self, cfg, comet_experiment, local_experiment, class_to_idx):
+    def __init__(self, cfg, comet_experiment, local_experiment, classes):
 
-        super().__init__(cfg, class_to_idx)
+        super().__init__(cfg, classes)
 
         self.comet_experiment = comet_experiment
         self.local_experiment = local_experiment
 
-        save_classes(self.label_names, self.local_experiment.path / "classes.json")
+        save_classes(self.classes, self.local_experiment.path / "classes.json")
 
     def log_images_at_start(self, loader, n_batches=3):
 
@@ -338,10 +325,10 @@ class TrainLogger(BaseLogger):
 
         # log metrics locally
         log_metrics(
-            self.local_experiment, self.target_names, self.label_names, epoch, train_results["metrics"], "Train"
+            self.local_experiment, self.target_names, self.classes, epoch, train_results["metrics"], "Train"
         )
 
-        log_metrics(self.local_experiment, self.target_names, self.label_names, epoch, val_results["metrics"], "Val")
+        log_metrics(self.local_experiment, self.target_names, self.classes, epoch, val_results["metrics"], "Val")
 
         if self.comet_experiment is not None:  # log metrics to comet
             log_images(self.comet_experiment, "Train", epoch, train_results["images"])
@@ -351,7 +338,7 @@ class TrainLogger(BaseLogger):
             log_metrics(
                 self.comet_experiment,
                 self.target_names,
-                self.label_names,
+                self.classes,
                 epoch,
                 train_results["metrics"],
                 "Train",
@@ -360,7 +347,7 @@ class TrainLogger(BaseLogger):
             log_metrics(
                 self.comet_experiment,
                 self.target_names,
-                self.label_names,
+                self.classes,
                 epoch,
                 val_results["metrics"],
                 "Validation",
@@ -369,7 +356,7 @@ class TrainLogger(BaseLogger):
             log_confusion_matrices(
                 self.comet_experiment,
                 self.target_names,
-                self.label_names,
+                self.classes,
                 epoch,
                 val_results,
                 "Validation",
