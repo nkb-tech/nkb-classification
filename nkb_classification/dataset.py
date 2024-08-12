@@ -371,9 +371,8 @@ def get_dataset(data, pipeline):
 def get_inference_dataset(data, pipeline):
     transform = Transforms(pipeline)
     dataset = InferDataset(
-        data["root"],
-        data["train_annotations_file"],
-        data["target_names"],
+        folder_path=data["folder_path"],
+        classes=data["classes"],
         transform=transform,
     )
     loader = DataLoader(

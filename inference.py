@@ -62,14 +62,11 @@ def main():
 
     # get dataloader
     data_loader = get_inference_dataset(cfg.inference_data, cfg.inference_pipeline)
-    device = torch.device(cfg.device)
 
     # get model
+    device = torch.device(cfg.device)
     classes = data_loader.dataset.classes
     model = get_model(cfg.model, classes, device, compile=cfg.compile)
-
-    # load weights
-    model.load_state_dict(torch.load(cfg.model["checkpoint"], map_location="cpu"))
 
     save_path = Path(cfg.save_path)
     save_path.mkdir(exist_ok=True, parents=True)
