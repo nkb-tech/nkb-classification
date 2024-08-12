@@ -90,8 +90,10 @@ def main():
     cfg_file = args.config
     exec(read_py_config(cfg_file), globals(), globals())
     train_loader = get_dataset(cfg.train_data, cfg.train_pipeline)
-    val_loader = get_dataset(cfg.val_data, cfg.val_pipeline)
     classes = train_loader.dataset.classes
+    if "classes" not in cfg.val_data.keys():
+        cfg.val_data = {**cfg.val_data, "classes": classes}
+    val_loader = get_dataset(cfg.val_data, cfg.val_pipeline)
     device = torch.device(cfg.device)
     model = get_model(cfg.model, classes, device, compile=cfg.compile)
 
