@@ -98,7 +98,6 @@ class InferDataset(Dataset):
     def __init__(
         self,
         folder_path,
-        classes=None,
         transform=None,
     ):
         super(
@@ -369,7 +368,6 @@ def get_inference_dataset(data, pipeline):
     transform = Transforms(pipeline)
     dataset = InferDataset(
         folder_path=data["folder_path"],
-        classes=data["classes"],
         transform=transform,
     )
     loader = DataLoader(
