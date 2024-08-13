@@ -30,7 +30,7 @@ def main():
     args = parser.parse_args()
     cfg_file = args.config
     exec(read_py_config(cfg_file), globals(), globals())
-    assert "classes" in cfg.val_data
+    assert "classes" in cfg.val_data or cfg.val_data["type"] == "ImageFolder"
     val_loader = get_dataset(cfg.val_data, cfg.val_pipeline)
     classes = val_loader.dataset.classes
     device = torch.device(cfg.device)
