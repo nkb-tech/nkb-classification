@@ -307,6 +307,7 @@ class TrainLogger(BaseLogger):
         "task",
         "comet_experiment",
         "local_experiment",
+        "show_full_conf_matrix"
     )
 
     def __init__(self, cfg, comet_experiment, local_experiment, classes):

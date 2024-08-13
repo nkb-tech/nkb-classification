@@ -25,7 +25,7 @@ def get_optimizer(model, cfg_optimizer):
             "lr": classifier_lr,
             "weight_decay": classifier_weight_decay,
         },
-    ],
+    ]
     match cfg_optimizer["type"].lower():
         case "adam":
             opt = Adam(parameters)
