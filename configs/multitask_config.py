@@ -2,9 +2,6 @@ import albumentations as A
 import cv2
 from albumentations.pytorch import ToTensorV2
 
-show_full_current_loss_in_terminal = False
-log_gradients = False  # to include model gradients in loss
-
 device = "cuda:0"
 enable_mixed_presicion = True
 enable_gradient_scaler = True
@@ -14,16 +11,18 @@ compile = False  # not working correctly yet, so set to false
 experiment_name = "train_multitask_run_1"
 
 experiment = {
-    "comet": {  # for logging to comet-ml service (optional)
+    "comet": {  # for logging to comet-ml service (optional, may be set to None)
         "comet_api_cfg_path": "configs/comet_api_cfg.yml",  # should contain 'api_key', 'workspace' and 'project_name' fields
         "auto_metric_logging": False,
         "name": experiment_name,
     },
-    "local": { # to save model weights and metrics locally
+    "local": {# to save model weights, metrics and class names config locally
         "path": f"data/runs/{experiment_name}",
     },
 }
 
+show_full_current_loss_in_terminal = False  # to show loss with respect to every task in progress bar
+log_gradients = False  # to include model gradients in logs
 show_all_classes_in_confusion_matrix = True  # show all classes in comet confusion matrix, if False then show at most 25
 
 """
@@ -34,21 +33,20 @@ type: AnnotatedSingletaskDataset, AnnotatedMultitaskDataset, GroupsDataset, defa
 For AnnotatedSingletaskDataset and AnnotatedMultitaskDataset the argumatns basically are:
 annotations_file: Path to csv labels in for AnnotatedSingletaskDataset and AnnotatedMultitaskDataset.
 image_base_dir: Base directory of images. Paths in 'path' column must be relative to this dir. Set None if you have global dirs in your csv file.
-target_column / target_names : column names(-s) with class labels.
+target_names : column names with class labels.
 classes: optional way to provide classnames. If not given, will be infered from annotations
 fold : train, val
-weighted_sampling : works only for single task
 
 and some pytorch dataloader parameters
 """
 
-task = "multi"
+task = "multi"  # to indicate working in multi-task mode
 
 annotations_path = "data/annotations.csv"
-image_base_dir = "data/images"
+image_base_dir = "data/images"  # optional (may be not specified)
 
 target_names = ["dog_size", "dog_color"]
-classes = {  # optional
+classes = {  # optional (may be not specified)
     "dog_size": ["bolshoj", "malenkij"],
     "dog_color": ["chernyj", "belyj"]
 }
@@ -56,11 +54,10 @@ classes = {  # optional
 train_data = {
     "type": "AnnotatedMultitaskDataset",
     "annotations_file": annotations_path,
-    "image_base_dir": image_base_dir,
+    "image_base_dir": image_base_dir,   # optional (may be not specified)
     "target_names": target_names,
-    "classes": classes,
+    "classes": classes,   # optional (may be not specified)
     "fold": "train",
-    "weighted_sampling": False,
     "shuffle": True,
     "batch_size": 64,
     "num_workers": 8,
@@ -70,11 +67,10 @@ train_data = {
 val_data = {
     "type": "AnnotatedMultitaskDataset",
     "annotations_file": annotations_path,
-    "image_base_dir": image_base_dir,
+    "image_base_dir": image_base_dir,   # optional (may be not specified)
     "target_names": target_names,
-    "classes": classes,
+    "classes": classes,  # optional (may be not specified, in this case will be infered from train classes)
     "fold": "val",
-    "weighted_sampling": False,
     "shuffle": False,
     "batch_size": 64,
     "num_workers": 8,
@@ -82,7 +78,7 @@ val_data = {
 }
 
 """
-Here you describe the transformations applied to the processed images
+Here you describe the transformations applied to the processed images with albumentations library
 """
 
 img_size = 128
@@ -146,8 +142,9 @@ Here you describe the model and optimizers
 
 model = {
     "task": task,
-    "model": "unicom ViT-B/32",  # possible to use models from unicom library
-    "pretrained": True,
+    "model": "unicom ViT-B/32",  # to use models from unicom library, the format should be "model_name", for unicom - "unicom model_name"
+    "pretrained": True,  # to load pretrained weights from timm or unicom library
+    # "checkpoint": "previous_run/model_Weights/last.pth",  # optional (may be not specified)
     "backbone_dropout": 0.1,
     "classifier_dropout": 0.1,
     "classifier_initialization": "kaiming_normal_",
@@ -155,10 +152,12 @@ model = {
 
 optimizer = {
     "type": "nadam",
-    "lr": 1e-5,
-    "weight_decay": 0.2,
-    "backbone_lr": 1e-5,
-    "classifier_lr": 1e-4,
+    "lr": 1e-5,  # learning rate of the whole model. May be overriden by backbone_lr and classifier_lr parameters (if poth provided then initial value is ignored)
+    "backbone_lr": 1e-5,  # optional learning rate value for model backbone to override base lr value (may be not specified)
+    "classifier_lr": 1e-4,  # optional learning rate value for model backbone to override base lr value (may be not specified)
+    "weight_decay": 0.2,  # weight decay of the whole model. May also be overriden by backbone_weight_decay and classifier_weight_decay parameters
+    "backbone_weight_decay": 0.01,  # optional weight decay value for model backbone to override base weight_decay value (may be not specified)
+    "classifier_weight_decay": 0.2,  # optional weight decay value for model backbone to override base weight_decay value (may be not specified)
 }
 
 n_epochs = 5

@@ -2,28 +2,26 @@ import albumentations as A
 import cv2
 from albumentations.pytorch import ToTensorV2
 
-show_full_current_loss_in_terminal = False
-log_gradients = False  # to include model gradients in loss
-
 device = "cuda:0"
-enable_mixed_presicion = True
-enable_gradient_scaler = True
-compile = False  # not working correctly yet, so set to false
+enable_mixed_presicion = True  # use mixed float precision for faster model training
+enable_gradient_scaler = True  # use float gradient scaling for faster model training
+compile = False  # not working correctly yet, so set to false (possible way of training process speedup)
 
 
 experiment_name = "train_singletask_run_1"
 
 experiment = {
-    "comet": {  # for logging to comet-ml service (optional)
+    "comet": {  # for logging to comet-ml service (optional, may be set to None)
         "comet_api_cfg_path": "configs/comet_api_cfg.yml",  # should contain 'api_key', 'workspace' and 'project_name' fields
         "auto_metric_logging": False,
         "name": experiment_name,
     },
-    "local": { # to save model weights and metrics locally
+    "local": { # to save model weights, metrics and class names config locally
         "path": f"data/runs/{experiment_name}",
     },
 }
 
+log_gradients = False  # to include model gradients in logs
 show_all_classes_in_confusion_matrix = True  # show all classes in comet confusion matrix, if False then show at most 25
 
 """
@@ -34,28 +32,28 @@ type: AnnotatedSingletaskDataset, AnnotatedMultitaskDataset, GroupsDataset, defa
 For AnnotatedSingletaskDataset and AnnotatedMultitaskDataset the argumatns basically are:
 annotations_file: Path to csv labels in for AnnotatedSingletaskDataset and AnnotatedMultitaskDataset.
 image_base_dir: Base directory of images. Paths in 'path' column must be relative to this dir. Set None if you have global dirs in your csv file.
-target_column / target_names : column names(-s) with class labels.
+target_column : column name with class labels.
 classes: optional way to provide classnames. If not given, will be infered from annotations
 fold : train, val
-weighted_sampling : works only for single task
+weighted_sampling : to sample training objects with respect to classes proportion in the dataset
 
 and some pytorch dataloader parameters
 """
 
-task = "single"
+task = "single"  # to indicate working in single-task mode
 
 annotations_path = "data/annotations.csv"
-image_base_dir = "data/images"
+image_base_dir = "data/images"  # optional (may be not specified)
 
 target_column = "label"
-classes = ["first_class", "second_class"]  # optional
+classes = ["first_class", "second_class"]  # optional (may be not specified)
 
 train_data = {
     "type": "AnnotatedSingletaskDataset",
     "annotations_file": annotations_path,
-    "image_base_dir": image_base_dir,
+    "image_base_dir": image_base_dir,  # optional (may be not specified)
     "target_column": target_column,
-    "classes": classes,
+    "classes": classes,  # optional (may be not specified)
     "fold": "train",
     "weighted_sampling": True,
     "shuffle": True,
@@ -67,11 +65,11 @@ train_data = {
 val_data = {
     "type": "AnnotatedSingletaskDataset",
     "annotations_file": annotations_path,
-    "image_base_dir": image_base_dir,
+    "image_base_dir": image_base_dir,  # optional (may be not specified)
     "target_column": target_column,
-    "classes": classes,
+    "classes": classes,  # optional (may be not specified, in this case will be infered from train classes)
     "fold": "val",
-    "weighted_sampling": False,
+    "weighted_sampling": False,  # it is reasonable not to use weighted sampling on validation
     "shuffle": False,
     "batch_size": 64,
     "num_workers": 8,
@@ -104,7 +102,7 @@ root: path to the folder where subfolders with images of each class are present
 # }
 
 """
-Here you describe the transformations applied to the processed images
+Here you describe the transformations applied to the processed images with albumentations library
 """
 
 img_size = 128
@@ -168,10 +166,10 @@ Here you describe the model and optimizers
 
 model = {
     "task": task,
-    "model": "resnet14t",
-    "pretrained": True,
-    # "checkpoint": "previous_run/model_Weights/last.pth",  # optional
-    "backbone_dropout": 0.1,
+    "model": "resnet14t",  # to use models from unicom library, the format should be "model_name", for unicom - "unicom model_name"
+    "pretrained": True,  # to load pretrained weights from timm or unicom library
+    # "checkpoint": "previous_run/model_Weights/last.pth",  # optional (may be not specified)
+    "backbone_dropout": 0.1,  
     "classifier_dropout": 0.1,
     "classifier_initialization": "kaiming_normal_",
 }
