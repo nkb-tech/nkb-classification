@@ -36,6 +36,8 @@ class SingletaskClassifier(nn.Module):
             nn.Linear(self.emb_size, len(classes)),
         )
 
+        self.initialize_classifier(strategy=cfg_model["classifier_initialization"])
+
     def forward(self, x: torch.Tensor):
         emb = self.emb_model(x)
         return self.classifier(emb)
@@ -54,7 +56,7 @@ class SingletaskClassifier(nn.Module):
             else:
                 nn.init.zeros_(param)
 
-    def set_backbone_state(self, state: str = "freeze"):
+    def set_backbone_state(self, state: str):
         for param in self.emb_model.parameters():
             if state == "freeze":
                 param.requires_grad = False
@@ -128,7 +130,7 @@ class MultitaskClassifier(nn.Module):
                 else:
                     nn.init.zeros_(param)
 
-    def set_backbone_state(self, state: str = "freeze"):
+    def set_backbone_state(self, state: str):
         for param in self.emb_model.parameters():
             if state == "freeze":
                 param.requires_grad = False
