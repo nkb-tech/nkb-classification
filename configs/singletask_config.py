@@ -24,6 +24,8 @@ experiment = {
     },
 }
 
+show_all_classes_in_confusion_matrix = True  # show all classes in comet confusion matrix, if False then show at most 25
+
 """
 Here you describe train data.
 

@@ -66,7 +66,7 @@ def get_local_experiment(cfg_exp):
     return exp
 
 
-def log_targetwise_metrics(experiment, target_name, classes, epoch, metrics, fold="Train"):
+def log_targetwise_metrics(experiment, target_name, classes, epoch, metrics, fold="train"):
     if target_name is None:
         target_name = ""
     acc = metrics["epoch_acc"]
@@ -117,7 +117,7 @@ def log_metrics(
     classes,
     epoch,
     metrics,
-    fold="Train",
+    fold="train",
 ):
     if target_names is None:
         log_targetwise_metrics(
@@ -159,23 +159,29 @@ def log_confusion_matrices(
     classes,
     epoch,
     results,
-    fold="Validation",
+    fold="validation",
+    show_all=False
 ):
+    default_max_categories = 25
     if target_names is None:
+        max_categories = len(classes) if show_all else default_max_categories
         experiment.log_confusion_matrix(
             results["ground_truth"],
             results["predictions"],
             labels=tuple(map(str, classes)),
+            max_categories=len(classes),
             title=f"{fold} confusion matrix",
             file_name=f"{fold}-confusion-matrix.json",
             epoch=epoch,
         )
     else:
         for target_name in target_names:
+            max_categories = len(classes[target_name]) if show_all else default_max_categories
             experiment.log_confusion_matrix(
                 results["ground_truth"][target_name],
                 results["predictions"][target_name],
                 labels=tuple(map(str, classes[target_name])),
+                max_categories=max_categories,
                 title=f"{fold} {target_name} confusion matrix",
                 file_name=f"{fold}-{target_name}-confusion-matrix.json",
                 epoch=epoch,
@@ -310,6 +316,9 @@ class TrainLogger(BaseLogger):
         self.comet_experiment = comet_experiment
         self.local_experiment = local_experiment
 
+        if hasattr(cfg, "show_all_classes_in_confusion_matrix"):
+            self.show_full_conf_matrix = cfg.show_all_classes_in_confusion_matrix
+
         save_classes(self.classes, self.local_experiment.path / "classes.json")
 
     def log_images_at_start(self, loader, n_batches=3):
@@ -325,15 +334,15 @@ class TrainLogger(BaseLogger):
 
         # log metrics locally
         log_metrics(
-            self.local_experiment, self.target_names, self.classes, epoch, train_results["metrics"], "Train"
+            self.local_experiment, self.target_names, self.classes, epoch, train_results["metrics"], "train"
         )
 
         log_metrics(self.local_experiment, self.target_names, self.classes, epoch, val_results["metrics"], "Val")
 
         if self.comet_experiment is not None:  # log metrics to comet
-            log_images(self.comet_experiment, "Train", epoch, train_results["images"])
+            log_images(self.comet_experiment, "train", epoch, train_results["images"])
 
-            log_images(self.comet_experiment, "Validation", epoch, val_results["images"])
+            log_images(self.comet_experiment, "validation", epoch, val_results["images"])
 
             log_metrics(
                 self.comet_experiment,
@@ -341,7 +350,7 @@ class TrainLogger(BaseLogger):
                 self.classes,
                 epoch,
                 train_results["metrics"],
-                "Train",
+                "train",
             )
 
             log_metrics(
@@ -350,7 +359,7 @@ class TrainLogger(BaseLogger):
                 self.classes,
                 epoch,
                 val_results["metrics"],
-                "Validation",
+                "validation",
             )
 
             log_confusion_matrices(
@@ -359,7 +368,8 @@ class TrainLogger(BaseLogger):
                 self.classes,
                 epoch,
                 val_results,
-                "Validation",
+                "validation",
+                self.show_full_conf_matrix
             )
 
             if self.cfg.log_gradients:
