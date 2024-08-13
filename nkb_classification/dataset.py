@@ -187,7 +187,7 @@ class AnnotatedSingletaskDataset(Dataset):
     """
 
     def __init__(self, annotations_file, target_column, fold="test", transform=None, image_base_dir=None, classes=None, **kwargs):
-        self.table = pd.read_csv(annotations_file, index_col=0)
+        self.table = pd.read_csv(annotations_file)
         self.table = self.table[self.table["fold"] == fold]
         self.target_column = target_column
 
@@ -238,7 +238,7 @@ class AnnotatedMultitaskDataset(Dataset):
     """
 
     def __init__(self, annotations_file, target_names, fold="test", transform=None, image_base_dir=None, classes=None, **kwargs):
-        self.table = pd.read_csv(annotations_file, index_col=0)
+        self.table = pd.read_csv(annotations_file)
         self.table = self.table[self.table["fold"] == fold]
         self.target_names = [*sorted(target_names)]
 
