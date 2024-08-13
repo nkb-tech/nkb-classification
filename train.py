@@ -96,20 +96,7 @@ def main():
     val_loader = get_dataset(cfg.val_data, cfg.val_pipeline)
     device = torch.device(cfg.device)
     model = get_model(cfg.model, classes, device, compile=cfg.compile)
-
-    optimizer = get_optimizer(
-        parameters=[
-            {
-                "params": model.emb_model.parameters(),
-                "lr": cfg.optimizer["backbone_lr"],
-            },
-            {
-                "params": model.classifier.parameters(),
-                "lr": cfg.optimizer["classifier_lr"],
-            },
-        ],
-        cfg=cfg.optimizer,
-    )
+    optimizer = get_optimizer(model, cfg=cfg.optimizer)
     scheduler = get_scheduler(optimizer, cfg.lr_policy)
     criterion = get_loss(cfg.criterion, cfg.device)
     comet_experiment = get_comet_experiment(cfg.experiment["comet"])

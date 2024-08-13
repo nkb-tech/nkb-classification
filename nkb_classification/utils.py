@@ -7,41 +7,38 @@ import json
 from torch.optim import SGD, Adam, NAdam, RAdam, SparseAdam, lr_scheduler
 
 
-def get_optimizer(parameters, cfg):
-    match cfg["type"]:
+def get_optimizer(model, cfg_optimizer):
+    base_lr = cfg_optimizer.get("lr", 0.001)
+    backbone_lr = cfg_optimizer.get("backbone_lr", base_lr)
+    classifier_lr = cfg_optimizer.get("classifier_lr", base_lr)
+    base_weight_decay = cfg_optimizer.get("weight_decay", 0.)
+    backbone_weight_decay = cfg_optimizer.get("backbone_weight_decay", base_weight_decay)
+    classifier_weight_decay = cfg_optimizer.get("classifier_weight_decay", base_weight_decay)
+    parameters=[
+        {
+            "params": model.emb_model.parameters(),
+            "lr": backbone_lr,
+            "weight_decay": backbone_weight_decay,
+        },
+        {
+            "params": model.classifier.parameters(),
+            "lr": classifier_lr,
+            "weight_decay": classifier_weight_decay,
+        },
+    ],
+    match cfg_optimizer["type"].lower():
         case "adam":
-            opt = Adam(
-                parameters,
-                lr=cfg["lr"],
-                weight_decay=cfg.get("weight_decay", 0.0),
-            )
+            opt = Adam(parameters)
         case "radam":
-            opt = RAdam(
-                parameters,
-                lr=cfg["lr"],
-                weight_decay=cfg.get("weight_decay", 0.0),
-            )
+            opt = RAdam(parameters)
         case "nadam":
-            opt = NAdam(
-                parameters,
-                lr=cfg["lr"],
-                weight_decay=cfg.get("weight_decay", 0.0),
-                decoupled_weight_decay=True,
-            )
+            opt = NAdam(parameters, decoupled_weight_decay=True)
         case "sparse_adam":
-            opt = SparseAdam(
-                parameters,
-                lr=cfg["lr"],
-                weight_decay=cfg.get("weight_decay", 0.0),
-            )
+            opt = SparseAdam(parameters)
         case "sgd":
-            opt = SGD(
-                parameters,
-                lr=cfg["lr"],
-                weight_decay=cfg.get("weight_decay", 0.0),
-            )
+            opt = SGD(parameters)
         case _:
-            raise NotImplementedError(f'Unknown optimizer in config: {cfg["type"]}')
+            raise NotImplementedError(f'Unknown optimizer in config: {cfg_optimizer["type"]}')
     return opt
 
 

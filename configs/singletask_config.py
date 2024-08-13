@@ -178,10 +178,12 @@ model = {
 
 optimizer = {
     "type": "nadam",
-    "lr": 1e-5,
-    "weight_decay": 0.2,
-    "backbone_lr": 1e-5,
-    "classifier_lr": 1e-4,
+    "lr": 1e-5,  # learning rate of the whole model. May be overriden by backbone_lr and classifier_lr parameters (if poth provided then initial value is ignored)
+    "backbone_lr": 1e-5,  # optional learning rate value for model backbone to override base lr value (may be not specified)
+    "classifier_lr": 1e-4,  # optional learning rate value for model backbone to override base lr value (may be not specified)
+    "weight_decay": 0.2,  # weight decay of the whole model. May also be overriden by backbone_weight_decay and classifier_weight_decay parameters
+    "backbone_weight_decay": 0.01,  # optional weight decay value for model backbone to override base weight_decay value (may be not specified)
+    "classifier_weight_decay": 0.2,  # optional weight decay value for model backbone to override base weight_decay value (may be not specified)
 }
 
 n_epochs = 5
