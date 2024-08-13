@@ -50,11 +50,10 @@ _Important fields_:
 * task : Determines task. Should be "single" for single task classfication (binary or multiclass), or 'multi' for multi task classification.
 * target_column *only for single task* : Column with class labels.
 * target_names *only for multi task* : Column names with class labels.
-* model_path : Path to save the checkpoints.
-* experiment : Settings regarding Comet ML logger. Set to None to disable it.
+* experiment : Settings regarding saving model weights, training results and Comet ML logger. Comet logger can be set to None to get disabled.
+* train_data / val_data: Train / val dataset settings. Look at comments in sample configs for details.
 * train_pipeline : Image preprocessing/augmentations during training phase.
 * val_pipeline : Image preprocessing/augmentations during validations phase.
-* train_data / val_data: Train / val dataset settings. Look at comments in sample configs for details.
 * model : Model settings. To choose a model, look section Available backbone models.
 
 ## Run inference
@@ -65,7 +64,9 @@ python3 -m inference -cfg `inference_cfg_path`
 ```
 
 ## Dataset format
-The dataset is provided as a `csv` table with paths to the images and annotations for each image which include train/val/test partition. Specifically, it should have the following structure
+
+#### CSV annotations
+To use this format, choose AnnotatedSingletaskDataset or AnnotatedMultitaskDataset dataset type in train_data/val_data configs. The dataset is provided as a `csv` table with paths to the images and annotations for each image which include train/val/test partition. Specifically, it should have the following structure
 
 || column_0 | column_1 | column_2 | ... | column_n | path | fold |
 |-|---|---|---|---|---|---|---|
@@ -75,6 +76,25 @@ The dataset is provided as a `csv` table with paths to the images and annotation
 |3|value_0_3|value_1_3|value_2_3|...|value_n_3|/home/user/data/img_3.jpg|-1|
 
 Objects with the `-1` fold value are ignored. Target columns are scpicfied in the `config` file by the `target_names` list. The path to the `csv` table is also provided through the `config` file.
+
+#### Arange images by folders
+To use this format, choose ImageFolder dataset type in train_data/val_data configs. In this case the structure of the dataset should be the following:
+```
+dataset_root/
+├── class_0/
+│   ├── image1.jpg
+│   ├── image2.jpg
+│   └── image3.jpg
+├── class_1/
+│   ├── image1.jpg
+│   ├── image2.jpg
+│   └── image3.jpg
+└── class_2/
+    ├── image1.jpg
+    ├── image2.jpg
+    └── image3.jpg
+
+```
 
 ## Available backbone models
 
