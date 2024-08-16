@@ -4,13 +4,17 @@ from typing import Callable
 
 import albumentations as A
 import cv2
+import tqdm
 import numpy as np
 import pandas as pd
 import torch
 import torchvision
+import yaml
 from PIL import Image
 from torch.utils.data import DataLoader, Dataset
 from torchvision.datasets import ImageFolder
+import requests, zipfile, io
+import os
 
 
 class ImbalancedDatasetSampler(torch.utils.data.sampler.Sampler):
@@ -47,8 +51,12 @@ class ImbalancedDatasetSampler(torch.utils.data.sampler.Sampler):
 
         label_to_count = df["label"].value_counts()
 
-        weights = 1.0 / label_to_count[df["label"]]
 
+        #TODO
+        weights = 1.0 / label_to_count[df["label"]]
+        # weights = 1.0 / len(label_to_count)
+
+        
         self.weights = torch.DoubleTensor(weights.to_list())
 
     def _get_labels(self, dataset):
@@ -201,7 +209,8 @@ class AnnotatedSingletaskDataset(Dataset):
         image_base_dir: base directory of images. if = None, then absolute paths are expected in 'path' column.
     """
 
-    def __init__(self, annotations_file, target_column, fold="test", transform=None, image_base_dir=None, **kwargs):
+    def __init__(self, annotations_file, target_column, fold="train", transform=None, image_base_dir=None, **kwargs):
+        super().__init__()
         self.table = pd.read_csv(annotations_file, index_col=0)
         self.table = self.table[self.table["fold"] == fold]
         self.target_column = target_column
@@ -236,6 +245,140 @@ class AnnotatedSingletaskDataset(Dataset):
     def get_labels(self):
         return self.table[self.target_column].values
 
+
+class AnnotatedYOLODataset(Dataset):
+    """extractall
+    AnnotatedYOLODataset provides a way to do single-target classification on YOLO crops.
+
+    Args:
+        annotations_file: path to the annotation file, which contains a pandas dataframe
+                          with image pahts and their target values
+        target_column: name of the column containing class annotations
+        fold: which fold in the dataset to work with (train, val, test, -1)
+        transform: which transform to apply to the image before returning it in the __getitem__ method
+        image_base_dir: base directory of images. if = None, then absolute paths are expected in 'path' column.
+    """
+
+
+    def __init__(
+        self,
+        annotations_file,
+        target_column=None,
+        fold="train",
+        transform=None,
+        image_base_dir=None,
+        **kwargs
+    ):
+        super().__init__()
+
+        assert fold in ('train', 'val', 'test'), \
+            f'Got fold equals {fold}'
+        
+        self.fold = fold
+        self.transform = transform
+
+        assert os.path.exists(annotations_file), \
+            f'Annotations file {annotations_file} does not exist.'
+        with open(annotations_file, 'r') as f:
+            self.yaml_data = yaml.load(f, Loader=yaml.SafeLoader)
+
+        if not target_column:
+            self.idx_to_class = self.yaml_data["names"]
+        else:
+            self.idx_to_class =  {
+                idx: lb
+                for idx, lb in enumerate(target_column)
+            }
+
+        self.classes = list(self.idx_to_class.values())
+
+        self.class_to_idx = {lb: idx for idx, lb in self.idx_to_class.items()}
+
+        
+        if not isinstance(self.yaml_data[self.fold], list):
+            self.yaml_data[self.fold] = [self.yaml_data[self.fold]]
+
+        image_base_dirs = list(map(lambda x: os.path.join(self.yaml_data['path'], x), self.yaml_data[self.fold]))
+        
+        self.dict_bbx = {}
+        idx = -1
+        
+        for image_base_dir in image_base_dirs:
+            if not os.path.exists(image_base_dir):
+                #loading marking dataset for yolo
+                url = self.yaml_data["download"]
+                r = requests.get(url)
+                z = zipfile.ZipFile(io.BytesIO(r.content))
+                z.extractall(self.yaml_data['path'])
+                print(f"Finish loading dataset by {self.yaml_data['download']}")
+            
+            #dict_bbx[abs idx] = filename (eqial for img and txt), number of line in txt file
+
+            labels_base_dir = image_base_dir.replace('images', 'labels')
+            assert os.path.exists(labels_base_dir) and os.path.isdir(labels_base_dir), \
+                f"Directory {labels_base_dir} does not exist"
+        
+            for image_filename in sorted(os.listdir(image_base_dir)):
+                filename, _ = os.path.splitext(image_filename)
+                txt_file = os.path.join(labels_base_dir, f'{filename}.txt')
+                # checking if it is a file
+                if not os.path.isfile(txt_file):
+                    continue
+
+                with open(txt_file, 'r') as fp:
+                    lines = fp.readlines()
+
+                for num_of_line in range(len(lines)):
+                    idx += 1
+                    label = self.idx_to_class[int(lines[num_of_line][0])]
+                    self.dict_bbx[idx] = image_filename, num_of_line, label
+
+    def __len__(self):   
+        return len(self.dict_bbx)
+
+    def __getitem__(self, idx):
+        image_filename, num_of_line, _ = self.dict_bbx[idx]
+        filename, _ = os.path.splitext(image_filename)
+
+        if not isinstance(self.yaml_data[self.fold], list):
+            self.yaml_data[self.fold] = [self.yaml_data[self.fold]]
+
+        image_base_dirs = list(map(lambda x: os.path.join(self.yaml_data['path'], x), self.yaml_data[self.fold]))
+
+        for image_base_dir in image_base_dirs:
+            img_filename = os.path.join(image_base_dir, image_filename)
+            txt_filename = os.path.join(image_base_dir.replace('images', 'labels'), f'{filename}.txt')
+
+            with open(txt_filename, 'r') as fp:
+                lines = fp.readlines()
+
+            line = lines[num_of_line].split()
+            assert len(line) >= 5, f'Got line with len eqial {len(line)}'
+            line = line[:5]
+            labels = np.array(line[0], dtype=np.int64)
+            x_center, y_center, width, height =  np.array(line[1:], np.float32)
+            
+            img = cv2.imread(img_filename)
+                
+            image_height, image_width, _ = img.shape
+
+            x_min = int((x_center - width / 2) * image_width)
+            y_min = int((y_center - height / 2) * image_height)
+            x_max = int((x_center + width / 2) * image_width)
+            y_max = int((y_center + height / 2) * image_height)
+            
+            img = img[y_min:y_max, x_min:x_max]
+
+            if self.transform is not None:
+                return self.transform(img), labels
+
+            return img, labels
+
+    def get_labels(self):
+        return np.array([
+            self.dict_bbx[idx][2]
+            for idx in self.dict_bbx
+        ])
 
 class AnnotatedMultitaskDataset(Dataset):
     """
@@ -276,7 +419,6 @@ class AnnotatedMultitaskDataset(Dataset):
     def __getitem__(self, idx):
         img_path = self.table.iloc[idx, self.table.columns.get_loc("path")]
         img = cv2.imread(img_path)
-        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         labels = {
             target_name: np.array(
                 self.class_to_idx[target_name][self.table.iloc[idx, self.table.columns.get_loc(target_name)]],
@@ -284,8 +426,6 @@ class AnnotatedMultitaskDataset(Dataset):
             )
             for target_name in self.target_names
         }
-
-        # import ipdb; ipdb.set_trace()
 
         if self.transform is not None:
             return self.transform(img), labels
@@ -322,6 +462,16 @@ def get_dataset(data, pipeline):
                 transform=transform,
                 **data,
             )
+        case "AnnotatedYOLODataset":
+            dataset = AnnotatedYOLODataset(
+                # data["ann_file"],
+                # data["target_column"],
+                # fold = data["fold"],
+                transform=transform,
+                **data,
+            )
+            # img,_ = dataset[0]
+            # if dataset.fold == "val": cv2.imwrite("nkb-classification/test_crop.jpg", img)
 
         case _:
             dataset = ImageFolder(data["root"], transform=transform)

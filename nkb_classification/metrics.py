@@ -98,7 +98,7 @@ def log_metrics(
     label_names,
     epoch,
     metrics,
-    fold="Train",
+    fold="train",
 ):
     if target_names is None:
         log_targetwise_metrics(
@@ -140,7 +140,7 @@ def log_confusion_matrices(
     label_names,
     epoch,
     results,
-    fold="Validation",
+    fold="val",
 ):
     if target_names is None:
         experiment.log_confusion_matrix(

@@ -15,19 +15,22 @@ enable_gradient_scaler = True
 
 task = "single"
 
-target_column = "column_0"
+target_column = None
 
-model_path = f"nkb-classification/exp"
+model_path = f"/root/nkb-classification/exp"
 
 experiment = {
-    "comet_api_cfg_path": "configs/comet_api_cfg.yml",
+    "api_key_path": "configs/comet_api_key.txt",
+    "project_name": "nkb-classification",
+    "workspace": "grigorevaesenia",
     "auto_metric_logging": False,
     "name": split(model_path)[-1],
 }
 
-# experiment = None
-
 img_size = 128
+
+mean=(0.485, 0.456, 0.406)
+std=(0.229, 0.224, 0.225)
 
 train_pipeline = A.Compose(
     [
@@ -36,10 +39,12 @@ train_pipeline = A.Compose(
         A.PadIfNeeded(
             img_size,
             img_size,
+            # border_mode=cv2.BORDER_CONSTANT,
+            # value=128,
+            # mask_value = 64,
             always_apply=True,
-            border_mode=cv2.BORDER_CONSTANT,
-            value=0,
         ),
+
         # A.MotionBlur(blur_limit=3, allow_shifted=True, p=0.5),
         A.HorizontalFlip(p=0.5),
         A.VerticalFlip(p=0.5),
@@ -73,8 +78,8 @@ train_pipeline = A.Compose(
             p=0.5,
         ),
         A.Normalize(
-            mean=(0.485, 0.456, 0.406),
-            std=(0.229, 0.224, 0.225),
+            mean=mean,
+            std=std,
         ),
         ToTensorV2(),
     ]
@@ -88,12 +93,11 @@ val_pipeline = A.Compose(
             img_size,
             img_size,
             always_apply=True,
-            border_mode=cv2.BORDER_CONSTANT,
-            value=0,
+            # border_mode=cv2.BORDER_CONSTANT,
         ),
         A.Normalize(
-            mean=(0.485, 0.456, 0.406),
-            std=(0.229, 0.224, 0.225),
+            mean=mean,
+            std=std,
         ),
         ToTensorV2(),
     ]
@@ -101,7 +105,7 @@ val_pipeline = A.Compose(
 
 """
 Here you describe train data.
-type: AnnotatedSingletaskDataset, AnnotatedMultitaskDataset, GroupsDataset, default - ImageFolder.
+type: AnnotatedSingletaskDataset, AnnotatedMultitaskDataset, GroupsDataset, defaut - ImageFolder.
 annotations_file: Path to csv labels in for AnnotatedSingletaskDataset and AnnotatedMultitaskDataset.
 image_base_dir: Base directory of images. Paths in 'path' column must be relative to this dir. Set None if you have global dirs in your csv file.
 target_column / target_names : column names(-s) with class labels.
@@ -110,11 +114,10 @@ weighted_sampling : works only for single task
 """
 
 train_data = {
-    "type": "AnnotatedSingletaskDataset",
-    "annotations_file": "nkb-classification/test.csv",
-    "image_base_dir": '/nkb-classification/nkb_classification/test',
+    "type": "AnnotatedYOLODataset",
+    "annotations_file": "/root/Projects/nkb-classification/brain-tumor.yaml",
+    "image_base_dir": '/root/Projects/nkb-classification/nkb_classification/datasets',
     "target_column": target_column,
-    # "root": "/home/a.nevarko/projects/datasets/parking/kaggle/pklot_original/spaces1000/train",
     "fold": "train",
     "weighted_sampling": True,
     "shuffle": True,
@@ -123,24 +126,10 @@ train_data = {
     "size": img_size,
 }
 
-# train_data = {
-#     "type": "AnnotatedSingletaskDataset",
-#     "annotations_file": "/home/slava/hdd/hdd4/Datasets/petsearch/Dog_expo_Vladimir_02_07_2023_mp4_frames/demo_dataset.csv",
-#     "image_base_dir": '/home/slava/hdd/hdd4/Datasets/petsearch/Dog_expo_Vladimir_02_07_2023_mp4_frames/multiclass_v4/images',
-#     "target_column": target_column,
-#     "fold": "train",
-#     "weighted_sampling": True,
-#     "shuffle": True,
-#     "batch_size": 32,
-#     "num_workers": 10,
-#     "size": img_size,
-# }
 
 val_data = {
-    "type": "AnnotatedSingletaskDataset",
-    "annotations_file": "nkb-classification/test.csv",
-    # "image_base_dir": '/home/slava/hdd/hdd4/Datasets/petsearch/Dog_expo_Vladimir_02_07_2023_mp4_frames/multiclass_v4/images',
-    # "root": "/home/a.nevarko/projects/datasets/parking/kaggle/pklot_original/spaces1000/val",
+    "type": "AnnotatedYOLODataset",
+    "annotations_file": "/root/Projects/nkb-classification/brain-tumor.yaml",
     "target_column": target_column,
     "fold": "val",
     "weighted_sampling": False,
@@ -150,19 +139,6 @@ val_data = {
     "size": img_size,
 }
 
-
-# val_data = {
-#     "type": "AnnotatedSingletaskDataset",
-#     "annotations_file": "/home/slava/hdd/hdd4/Datasets/petsearch/Dog_expo_Vladimir_02_07_2023_mp4_frames/demo_dataset.csv",
-#     "image_base_dir": '/home/slava/hdd/hdd4/Datasets/petsearch/Dog_expo_Vladimir_02_07_2023_mp4_frames/multiclass_v4/images',
-#     "target_column": target_column,
-#     "fold": "val",
-#     "weighted_sampling": True,
-#     "shuffle": True,
-#     "batch_size": 32,
-#     "num_workers": 8,
-#     "size": img_size,
-# }
 
 model = {
     "task": task,
@@ -190,6 +166,14 @@ lr_policy = {
     "gamma": 0.1,
 }
 
-backbone_state_policy = {0: "freeze", 5: "unfreeze", 10: "freeze"}
+backbone_state_policy = {
+    0: "freeze",
+    5: "unfreeze",
+    10: "freeze"
+}
 
-criterion = {"task": task, "type": "FocalLoss", "gamma": 1}
+criterion = {
+    "task": task,
+    "type": "FocalLoss",
+    "gamma": 1
+}

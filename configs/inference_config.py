@@ -4,7 +4,7 @@ from albumentations.pytorch import ToTensorV2
 
 device = "cuda:1"
 
-save_path = "/home/denis/nkbtech/inference"
+save_path = "exp"
 
 target_names = [
     "dog_size",
