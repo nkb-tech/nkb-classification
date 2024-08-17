@@ -343,12 +343,12 @@ def main():
     train_loader = get_dataset(cfg.train_data, cfg.train_pipeline)
     val_loader = get_dataset(cfg.val_data, cfg.val_pipeline)
 
-    image_dir = 'experiment'
-    print(image_dir)
-    if not os.path.exists(image_dir):
-        os.makedirs(image_dir)
+    # image_dir = 'experiment'
+    # print(image_dir)
+    # if not os.path.exists(image_dir):
+    #     os.makedirs(image_dir)
 
-    save_augs(train_loader.dataset, image_dir)
+    # save_augs(train_loader.dataset, image_dir)
     ##############################################################################
     classes = train_loader.dataset.classes
     device = torch.device(cfg.device)
