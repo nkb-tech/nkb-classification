@@ -348,52 +348,38 @@ class AnnotatedYOLODataset(Dataset):
                     image_filename = str(image_filename)
                     self.list_bbox.append((image_filename, (x_min, y_min, x_max, y_max), label))
 
-    def __len__(self):   
-        return len(self.dict_bbx)
+    def __len__(self):
+        return len(self.list_bbox)
 
     def __getitem__(self, idx):
-        image_filename, num_of_line, _ = self.dict_bbx[idx]
-        filename, _ = os.path.splitext(image_filename)
+        image_filename, (x_min, y_min, x_max, y_max), label = self.list_bbox[idx]
 
-        if not isinstance(self.yaml_data[self.fold], list):
-            self.yaml_data[self.fold] = [self.yaml_data[self.fold]]
+        img = cv2.imread(image_filename)
+        
+        img = img[y_min:y_max, x_min:x_max]
 
-        image_base_dirs = list(map(lambda x: os.path.join(self.yaml_data['path'], x), self.yaml_data[self.fold]))
+        if self.transform is not None:
+            return self.transform(img), label
 
-        for image_base_dir in image_base_dirs:
-            img_filename = os.path.join(image_base_dir, image_filename)
-            txt_filename = os.path.join(image_base_dir.replace('images', 'labels'), f'{filename}.txt')
-
-            with open(txt_filename, 'r') as fp:
-                lines = fp.readlines()
-
-            line = lines[num_of_line].split()
-            assert len(line) >= 5, f'Got line with len eqial {len(line)}'
-            line = line[:5]
-            labels = np.array(line[0], dtype=np.int64)
-            x_center, y_center, width, height =  np.array(line[1:], np.float32)
-            
-            img = cv2.imread(img_filename)
-                
-            image_height, image_width, _ = img.shape
-
-            x_min = int((x_center - width / 2) * image_width)
-            y_min = int((y_center - height / 2) * image_height)
-            x_max = int((x_center + width / 2) * image_width)
-            y_max = int((y_center + height / 2) * image_height)
-            
-            img = img[y_min:y_max, x_min:x_max]
-
-            if self.transform is not None:
-                return self.transform(img), labels
-
-            return img, labels
+        return img, label
 
     def get_labels(self):
         return np.array([
-            self.dict_bbx[idx][2]
-            for idx in self.dict_bbx
+            label for _, _, label in self.list_bbox
         ])
+    
+    @staticmethod
+    def bbox_xywhn2xyxy(x_center, y_center, width, height, image_size):
+        image_height, image_width = image_size
+        x_min = int((x_center - width / 2) * image_width)
+        y_min = int((y_center - height / 2) * image_height)
+        x_max = int((x_center + width / 2) * image_width)
+        y_max = int((y_center + height / 2) * image_height)
+        return x_min, y_min, x_max, y_max
+    
+    def check_boxes_sizes_annotation(self, x_min, y_min, x_max, y_max):
+        return x_max - x_min >= self.min_box_size and y_max - y_min >= self.min_box_size
+
 
 class AnnotatedMultitaskDataset(Dataset):
     """
