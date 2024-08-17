@@ -267,9 +267,13 @@ class AnnotatedYOLODataset(Dataset):
         fold="train",
         transform=None,
         image_base_dir=None,
+        min_box_size=5,
         **kwargs
     ):
         super().__init__()
+
+        self.ext = [".jpg", ".jpeg", ".png"]
+        self.min_box_size = min_box_size
 
         assert fold in ('train', 'val', 'test'), \
             f'Got fold equals {fold}'
@@ -293,45 +297,56 @@ class AnnotatedYOLODataset(Dataset):
         self.classes = list(self.idx_to_class.values())
 
         self.class_to_idx = {lb: idx for idx, lb in self.idx_to_class.items()}
-
         
         if not isinstance(self.yaml_data[self.fold], list):
             self.yaml_data[self.fold] = [self.yaml_data[self.fold]]
 
-        image_base_dirs = list(map(lambda x: os.path.join(self.yaml_data['path'], x), self.yaml_data[self.fold]))
+        image_base_dir = Path(image_base_dir) if image_base_dir is not None else Path("/")
+        image_dir = list(map(lambda p: image_base_dir / self.yaml_data["path"] / p, self.yaml_data[self.fold]))
         
-        self.dict_bbx = {}
-        idx = -1
+        self.list_bbox = []
         
-        for image_base_dir in image_base_dirs:
-            if not os.path.exists(image_base_dir):
+        for image_dir in image_dir:
+
+            image_dir = Path(image_dir)
+            if not image_dir.is_dir():
                 #loading marking dataset for yolo
                 url = self.yaml_data["download"]
                 r = requests.get(url)
                 z = zipfile.ZipFile(io.BytesIO(r.content))
-                z.extractall(self.yaml_data['path'])
-                print(f"Finish loading dataset by {self.yaml_data['download']}")
-            
-            #dict_bbx[abs idx] = filename (eqial for img and txt), number of line in txt file
+                z.extractall(self.yaml_data["path"])
+                print(f"Finish loading dataset by {self.yaml_data["download"]}")
 
-            labels_base_dir = image_base_dir.replace('images', 'labels')
-            assert os.path.exists(labels_base_dir) and os.path.isdir(labels_base_dir), \
-                f"Directory {labels_base_dir} does not exist"
+            labels_dir = image_dir.parent / "labels"
+            assert labels_dir.is_dir(), \
+                f"Directory {labels_dir} does not exist"
         
-            for image_filename in sorted(os.listdir(image_base_dir)):
-                filename, _ = os.path.splitext(image_filename)
-                txt_file = os.path.join(labels_base_dir, f'{filename}.txt')
+            for image_filename in sorted(image_dir.iterdir()):
+                if image_filename.suffix.lower() not in self.ext:
+                    continue
+
+                txt_file = labels_dir / (image_filename.stem + ".txt")
                 # checking if it is a file
-                if not os.path.isfile(txt_file):
+                if not txt_file.is_file():
                     continue
 
                 with open(txt_file, 'r') as fp:
                     lines = fp.readlines()
 
-                for num_of_line in range(len(lines)):
-                    idx += 1
-                    label = self.idx_to_class[int(lines[num_of_line][0])]
-                    self.dict_bbx[idx] = image_filename, num_of_line, label
+                with Image.open(image_filename) as img:
+                    img_width, img_height = img.size
+                    image_size = (img_height, img_width)
+
+                for line in lines:
+                    label = int(line.split()[0])
+                    x_center, y_center, width, height = tuple(map(float, line.split()[1:]))
+                    x_min, y_min, x_max, y_max = self.bbox_xywhn2xyxy(x_center, y_center, width, height, image_size)
+
+                    if not self.check_boxes_sizes_annotation(x_min, y_min, x_max, y_max):
+                        continue
+
+                    image_filename = str(image_filename)
+                    self.list_bbox.append((image_filename, (x_min, y_min, x_max, y_max), label))
 
     def __len__(self):   
         return len(self.dict_bbx)
