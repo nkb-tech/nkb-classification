@@ -253,7 +253,6 @@ class AnnotatedYOLODataset(Dataset):
     Args:
         annotations_file: path to the annotation file, which contains a pandas dataframe
                           with image pahts and their target values
-        target_column: name of the column containing class annotations
         fold: which fold in the dataset to work with (train, val, test, -1)
         transform: which transform to apply to the image before returning it in the __getitem__ method
         image_base_dir: base directory of images. if = None, then absolute paths are expected in 'path' column.
@@ -263,7 +262,6 @@ class AnnotatedYOLODataset(Dataset):
     def __init__(
         self,
         annotations_file,
-        target_column=None,
         fold="train",
         transform=None,
         image_base_dir=None,
@@ -286,15 +284,13 @@ class AnnotatedYOLODataset(Dataset):
         with open(annotations_file, 'r') as f:
             self.yaml_data = yaml.load(f, Loader=yaml.SafeLoader)
 
-        if not target_column:
-            self.idx_to_class = self.yaml_data["names"]
-        else:
-            self.idx_to_class =  {
-                idx: lb
-                for idx, lb in enumerate(target_column)
-            }
+        self.idx_to_class = self.yaml_data["names"]
+        assert set(self.idx_to_class.keys()) == set(range(len(self.idx_to_class))), \
+        "Class indices should form range(0, num_classes) without skips"
 
-        self.classes = list(self.idx_to_class.values())
+        self.classes = list(None for _ in range(len(self.idx_to_class)))
+        for idx, lb in self.idx_to_class.items():
+            self.classes[idx] = lb
 
         self.class_to_idx = {lb: idx for idx, lb in self.idx_to_class.items()}
         
