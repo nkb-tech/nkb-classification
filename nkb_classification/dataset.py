@@ -256,6 +256,12 @@ class AnnotatedYOLODataset(Dataset):
         fold: which fold in the dataset to work with (train, val, test, -1)
         transform: which transform to apply to the image before returning it in the __getitem__ method
         image_base_dir: base directory of images. if = None, then absolute paths are expected in 'path' column.
+        min_box_size: bboxes with smaller linear size are ignored
+        generate_backgrounds: option to generate random crops from image backgrounds
+                          in oreder to train the classifier to distinguish false and true detections
+        background_generating_prob: probability of taking a bakground crop from an image (in case generate_backgrounds == True).
+                          If None, would be 1 / n_classes
+        background_crop_sizes: min and max size of randomly chosen background crop (in case generate_backgrounds == True).
     """
 
 
@@ -266,6 +272,9 @@ class AnnotatedYOLODataset(Dataset):
         transform=None,
         image_base_dir=None,
         min_box_size=5,
+        generate_backgrounds=False,
+        background_generating_prob=None,
+        background_crop_sizes=(0.1, 0.3),
         **kwargs
     ):
         super().__init__()
@@ -278,6 +287,10 @@ class AnnotatedYOLODataset(Dataset):
         
         self.fold = fold
         self.transform = transform
+
+        self.generate_backgrounds = generate_backgrounds
+        self.background_generating_prob = background_generating_prob
+        self.background_crop_sizes = background_crop_sizes
 
         assert os.path.exists(annotations_file), \
             f'Annotations file {annotations_file} does not exist.'
@@ -293,6 +306,15 @@ class AnnotatedYOLODataset(Dataset):
             self.classes[idx] = lb
 
         self.class_to_idx = {lb: idx for idx, lb in self.idx_to_class.items()}
+
+        if generate_backgrounds:
+            bg_lb, bg_idx = len(self.classes), "<GENERATED>_background"
+            self.classes.append(bg_lb)
+            self.idx_to_class[bg_idx] = bg_lb
+            self.class_to_idx[bg_lb] = bg_idx
+
+        if self.background_generating_prob is not None:
+            self.background_generating_prob = 1 / len(self.classes)
         
         if not isinstance(self.yaml_data[self.fold], list):
             self.yaml_data[self.fold] = [self.yaml_data[self.fold]]
@@ -343,6 +365,21 @@ class AnnotatedYOLODataset(Dataset):
 
                     image_filename = str(image_filename)
                     self.list_bbox.append((image_filename, (x_min, y_min, x_max, y_max), label))
+
+                if self.generate_backgrounds:
+                    if np.random.rand() > self.background_generating_prob:
+                        continue
+                    
+                    bg_crop_size = np.floor(np.random.uniform(**self.background_crop_sizes))
+
+                    bg_x_min = np.random.randint(0, np.floor(img_width * (1 - bg_crop_size)))
+                    bg_y_min = np.random.randint(0, np.floor(img_height * (1 - bg_crop_size)))
+                    bg_x_max = bg_x_min + bg_crop_size
+                    bg_y_max = bg_y_min + bg_crop_size
+
+                    bg_label = self.class_to_idx[self.classes[-1]]
+
+                    self.list_bbox.append((image_filename, (bg_x_min, bg_y_min, bg_x_max, bg_y_max), bg_label))
 
     def __len__(self):
         return len(self.list_bbox)
