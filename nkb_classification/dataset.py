@@ -298,11 +298,11 @@ class AnnotatedYOLODataset(Dataset):
             self.yaml_data[self.fold] = [self.yaml_data[self.fold]]
 
         image_base_dir = Path(image_base_dir) if image_base_dir is not None else Path("/")
-        image_dir = list(map(lambda p: image_base_dir / self.yaml_data["path"] / p, self.yaml_data[self.fold]))
+        image_dirs = list(map(lambda p: image_base_dir / self.yaml_data["path"] / p, self.yaml_data[self.fold]))
         
         self.list_bbox = []
         
-        for image_dir in image_dir:
+        for image_dir in image_dirs:
 
             image_dir = Path(image_dir)
             if not image_dir.is_dir():
