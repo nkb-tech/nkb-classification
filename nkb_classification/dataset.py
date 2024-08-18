@@ -291,6 +291,7 @@ class AnnotatedYOLODataset(Dataset):
         self.generate_backgrounds = generate_backgrounds
         self.background_generating_prob = background_generating_prob
         self.background_crop_sizes = background_crop_sizes
+        self.attempts_to_put_bakground_crop = 10  # for random background_crop not to have intersection with true bboxes
 
         assert os.path.exists(annotations_file), \
             f'Annotations file {annotations_file} does not exist.'
@@ -369,17 +370,38 @@ class AnnotatedYOLODataset(Dataset):
                 if self.generate_backgrounds:
                     if np.random.rand() > self.background_generating_prob:
                         continue
+
+                    for attempt in self.attempts_to_put_bakground_crop:
                     
-                    bg_crop_size = np.floor(np.random.uniform(**self.background_crop_sizes))
+                        bg_crop_size = np.floor(np.random.uniform(**self.background_crop_sizes))
 
-                    bg_x_min = np.random.randint(0, np.floor(img_width * (1 - bg_crop_size)))
-                    bg_y_min = np.random.randint(0, np.floor(img_height * (1 - bg_crop_size)))
-                    bg_x_max = bg_x_min + bg_crop_size
-                    bg_y_max = bg_y_min + bg_crop_size
+                        bg_x_min = np.random.randint(0, np.floor(img_width * (1 - bg_crop_size)))
+                        bg_y_min = np.random.randint(0, np.floor(img_height * (1 - bg_crop_size)))
+                        bg_x_max = bg_x_min + bg_crop_size
+                        bg_y_max = bg_y_min + bg_crop_size
 
-                    bg_label = self.class_to_idx[self.classes[-1]]
+                        bg_label = self.class_to_idx[self.classes[-1]]
 
-                    self.list_bbox.append((image_filename, (bg_x_min, bg_y_min, bg_x_max, bg_y_max), bg_label))
+                        successfully_put_bg_crop = True
+                        for line in lines:  # check inetrsection with true object boxes
+                            x_center, y_center, width, height = tuple(map(float, line.split()[1:]))
+                            x_min, y_min, x_max, y_max = self.bbox_xywhn2xyxy(
+                                x_center, y_center, width, height, image_size
+                            )
+
+                            if not self.bbox_intersect(
+                                (bg_x_min, bg_y_min, bg_x_max, bg_y_max),
+                                (x_min, y_min, x_max, y_max)
+                            ):
+                                successfully_put_bg_crop = False
+
+                        if not successfully_put_bg_crop:
+                            continue
+
+                        self.list_bbox.append(
+                            (image_filename, (bg_x_min, bg_y_min, bg_x_max, bg_y_max), bg_label)
+                        )
+                        break
 
     def __len__(self):
         return len(self.list_bbox)
@@ -409,6 +431,16 @@ class AnnotatedYOLODataset(Dataset):
         x_max = int((x_center + width / 2) * image_width)
         y_max = int((y_center + height / 2) * image_height)
         return x_min, y_min, x_max, y_max
+
+    @staticmethod
+    def bbox_intersect(bbox1, bbox2):
+        x1_min, y1_min, x1_max, y1_max = bbox1
+        x2_min, y2_min, x2_max, y2_max = bbox2
+        if x1_max < x2_min or x2_max < x1_min:
+            return False
+        if y1_max < y2_min or y2_max < y1_min:
+            return False
+        return True
     
     def check_boxes_sizes_annotation(self, x_min, y_min, x_max, y_max):
         return x_max - x_min >= self.min_box_size and y_max - y_min >= self.min_box_size
