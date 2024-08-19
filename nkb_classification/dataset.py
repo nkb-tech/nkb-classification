@@ -309,12 +309,12 @@ class AnnotatedYOLODataset(Dataset):
         self.class_to_idx = {lb: idx for idx, lb in self.idx_to_class.items()}
 
         if generate_backgrounds:
-            bg_lb, bg_idx = len(self.classes), "<GENERATED>_background"
+            bg_idx, bg_lb = len(self.classes), "<GENERATED>_background"
             self.classes.append(bg_lb)
             self.idx_to_class[bg_idx] = bg_lb
             self.class_to_idx[bg_lb] = bg_idx
 
-        if self.background_generating_prob is not None:
+        if self.background_generating_prob is None:
             self.background_generating_prob = 1 / len(self.classes)
         
         if not isinstance(self.yaml_data[self.fold], list):
@@ -371,14 +371,19 @@ class AnnotatedYOLODataset(Dataset):
                     if np.random.rand() > self.background_generating_prob:
                         continue
 
-                    for attempt in self.attempts_to_put_bakground_crop:
+                    for attempt in range(self.attempts_to_put_bakground_crop):
                     
-                        bg_crop_size = np.floor(np.random.uniform(**self.background_crop_sizes))
+                        bg_crop_size = np.random.uniform(*self.background_crop_sizes)
 
-                        bg_x_min = np.random.randint(0, np.floor(img_width * (1 - bg_crop_size)))
-                        bg_y_min = np.random.randint(0, np.floor(img_height * (1 - bg_crop_size)))
-                        bg_x_max = bg_x_min + bg_crop_size
-                        bg_y_max = bg_y_min + bg_crop_size
+                        bg_x_min = np.random.randint(0, int(img_width * (1 - bg_crop_size)))
+                        bg_y_min = np.random.randint(0, int(img_height * (1 - bg_crop_size)))
+                        bg_x_max = bg_x_min + int(img_width * bg_crop_size)
+                        bg_y_max = bg_y_min + int(img_height * bg_crop_size)
+
+                        if not self.check_boxes_sizes_annotation(
+                            bg_x_min, bg_y_min, bg_x_max, bg_y_max
+                        ):
+                            continue
 
                         bg_label = self.class_to_idx[self.classes[-1]]
 
@@ -410,7 +415,7 @@ class AnnotatedYOLODataset(Dataset):
         image_filename, (x_min, y_min, x_max, y_max), label = self.list_bbox[idx]
 
         img = cv2.imread(image_filename)
-        
+
         img = img[y_min:y_max, x_min:x_max]
 
         if self.transform is not None:
