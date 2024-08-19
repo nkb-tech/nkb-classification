@@ -415,6 +415,7 @@ class AnnotatedYOLODataset(Dataset):
         image_filename, (x_min, y_min, x_max, y_max), label = self.list_bbox[idx]
 
         img = cv2.imread(image_filename)
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
         img = img[y_min:y_max, x_min:x_max]
 
@@ -490,6 +491,7 @@ class AnnotatedMultitaskDataset(Dataset):
     def __getitem__(self, idx):
         img_path = self.table.iloc[idx, self.table.columns.get_loc("path")]
         img = cv2.imread(img_path)
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         labels = {
             target_name: np.array(
                 self.class_to_idx[target_name][self.table.iloc[idx, self.table.columns.get_loc(target_name)]],
