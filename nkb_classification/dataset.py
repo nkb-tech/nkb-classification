@@ -331,10 +331,12 @@ class AnnotatedYOLODataset(Dataset):
             z.extractall(self.yaml_data["path"])
             print(f"Finish loading dataset by {self.yaml_data["download"]}")
 
+        print("Scanning image directories")
         img_paths = self.get_img_files(image_dirs)
         
         self.list_bbox = []
 
+        print("Scanning image annotations")
         for image_filename in sorted(img_paths):
 
             image_filename = Path(image_filename)
@@ -459,7 +461,7 @@ class AnnotatedYOLODataset(Dataset):
         As implemented in https://github.com/ultralytics/ultralytics/blob/7a79680dcc1d9c8d8da1c3910fa1775110c41255/ultralytics/data/base.py#L99
         """
         HELP_URL = "See https://docs.ultralytics.com/datasets for dataset formatting guidance."
-        IMG_FORMATS = tuple(map(lambda ext: '.' + ext, self.ext))  # image suffixes
+        IMG_FORMATS = tuple(map(lambda ext: ext.split('.')[-1], self.ext))  # image suffixes
         VID_FORMATS = {"asf", "avi", "gif", "m4v", "mkv", "mov", "mp4", "mpeg", "mpg", "ts", "wmv", "webm"}  # video suffixes
         FORMATS_HELP_MSG = f"Supported formats are:\nimages: {IMG_FORMATS}\nvideos: {VID_FORMATS}"
         try:
@@ -476,12 +478,12 @@ class AnnotatedYOLODataset(Dataset):
                         f += [x.replace("./", parent) if x.startswith("./") else x for x in t]  # local to global path
                         # F += [p.parent / x.lstrip(os.sep) for x in t]  # local to global path (pathlib)
                 else:
-                    raise FileNotFoundError(f"{self.prefix}{p} does not exist")
+                    raise FileNotFoundError(f"{p} does not exist")
             im_files = sorted(x.replace("/", os.sep) for x in f if x.split(".")[-1].lower() in IMG_FORMATS)
             # self.img_files = sorted([x for x in f if x.suffix[1:].lower() in IMG_FORMATS])  # pathlib
-            assert im_files, f"{self.prefix}No images found in {img_path}. {FORMATS_HELP_MSG}"
+            assert im_files, f"No images found in {img_path}. {FORMATS_HELP_MSG}"
         except Exception as e:
-            raise FileNotFoundError(f"{self.prefix}Error loading data from {img_path}\n{HELP_URL}") from e
+            raise FileNotFoundError(f"Error loading data from {img_path}\n{HELP_URL}") from e
         return im_files
 
 
