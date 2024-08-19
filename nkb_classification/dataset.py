@@ -15,6 +15,7 @@ from torch.utils.data import DataLoader, Dataset
 from torchvision.datasets import ImageFolder
 import requests, zipfile, io
 import os
+import glob
 
 
 class ImbalancedDatasetSampler(torch.utils.data.sampler.Sampler):
@@ -322,91 +323,91 @@ class AnnotatedYOLODataset(Dataset):
 
         image_base_dir = Path(image_base_dir) if image_base_dir is not None else Path("/")
         image_dirs = list(map(lambda p: image_base_dir / self.yaml_data["path"] / p, self.yaml_data[self.fold]))
+
+        if len(image_dirs) == 1 and "download" in self.yaml_data and not image_dirs[0].is_dir():
+            url = self.yaml_data["download"]
+            r = requests.get(url)
+            z = zipfile.ZipFile(io.BytesIO(r.content))
+            z.extractall(self.yaml_data["path"])
+            print(f"Finish loading dataset by {self.yaml_data["download"]}")
+
+        img_paths = self.get_img_files(image_dirs)
         
         self.list_bbox = []
-        
-        for image_dir in image_dirs:
 
-            image_dir = Path(image_dir)
-            if not image_dir.is_dir():
-                #loading marking dataset for yolo
-                url = self.yaml_data["download"]
-                r = requests.get(url)
-                z = zipfile.ZipFile(io.BytesIO(r.content))
-                z.extractall(self.yaml_data["path"])
-                print(f"Finish loading dataset by {self.yaml_data["download"]}")
+        for image_filename in sorted(img_paths):
 
-            labels_dir = image_dir.parent / "labels"
+            image_filename = Path(image_filename)
+            labels_dir = image_filename.parent.parent / "labels"
             assert labels_dir.is_dir(), \
                 f"Directory {labels_dir} does not exist"
-        
-            for image_filename in sorted(image_dir.iterdir()):
-                if image_filename.suffix.lower() not in self.ext:
+
+            if image_filename.suffix.lower() not in self.ext:
+                continue
+
+            txt_file = labels_dir / (image_filename.stem + ".txt")
+            # checking if it is a file
+            if not txt_file.is_file():
+                continue
+
+            with open(txt_file, 'r') as fp:
+                lines = fp.readlines()
+
+            with Image.open(image_filename) as img:
+                img_width, img_height = img.size
+                image_size = (img_height, img_width)
+
+            for line in lines:
+                label = int(line.split()[0])
+                x_center, y_center, width, height = tuple(map(float, line.split()[1:]))
+                x_min, y_min, x_max, y_max = self.bbox_xywhn2xyxy(x_center, y_center, width, height, image_size)
+
+                if not self.check_boxes_sizes_annotation(x_min, y_min, x_max, y_max):
                     continue
 
-                txt_file = labels_dir / (image_filename.stem + ".txt")
-                # checking if it is a file
-                if not txt_file.is_file():
+                image_filename = str(image_filename)
+                self.list_bbox.append((image_filename, (x_min, y_min, x_max, y_max), label))
+
+            if self.generate_backgrounds:
+                if np.random.rand() > self.background_generating_prob:
                     continue
 
-                with open(txt_file, 'r') as fp:
-                    lines = fp.readlines()
+                for attempt in range(self.attempts_to_put_bakground_crop):
+                
+                    bg_crop_size = np.random.uniform(*self.background_crop_sizes)
 
-                with Image.open(image_filename) as img:
-                    img_width, img_height = img.size
-                    image_size = (img_height, img_width)
+                    bg_x_min = np.random.randint(0, int(img_width * (1 - bg_crop_size)))
+                    bg_y_min = np.random.randint(0, int(img_height * (1 - bg_crop_size)))
+                    bg_x_max = bg_x_min + int(img_width * bg_crop_size)
+                    bg_y_max = bg_y_min + int(img_height * bg_crop_size)
 
-                for line in lines:
-                    label = int(line.split()[0])
-                    x_center, y_center, width, height = tuple(map(float, line.split()[1:]))
-                    x_min, y_min, x_max, y_max = self.bbox_xywhn2xyxy(x_center, y_center, width, height, image_size)
-
-                    if not self.check_boxes_sizes_annotation(x_min, y_min, x_max, y_max):
+                    if not self.check_boxes_sizes_annotation(
+                        bg_x_min, bg_y_min, bg_x_max, bg_y_max
+                    ):
                         continue
 
-                    image_filename = str(image_filename)
-                    self.list_bbox.append((image_filename, (x_min, y_min, x_max, y_max), label))
+                    bg_label = self.class_to_idx[self.classes[-1]]
 
-                if self.generate_backgrounds:
-                    if np.random.rand() > self.background_generating_prob:
-                        continue
-
-                    for attempt in range(self.attempts_to_put_bakground_crop):
-                    
-                        bg_crop_size = np.random.uniform(*self.background_crop_sizes)
-
-                        bg_x_min = np.random.randint(0, int(img_width * (1 - bg_crop_size)))
-                        bg_y_min = np.random.randint(0, int(img_height * (1 - bg_crop_size)))
-                        bg_x_max = bg_x_min + int(img_width * bg_crop_size)
-                        bg_y_max = bg_y_min + int(img_height * bg_crop_size)
-
-                        if not self.check_boxes_sizes_annotation(
-                            bg_x_min, bg_y_min, bg_x_max, bg_y_max
-                        ):
-                            continue
-
-                        bg_label = self.class_to_idx[self.classes[-1]]
-
-                        successfully_put_bg_crop = True
-                        for line in lines:  # check inetrsection with true object boxes
-                            x_center, y_center, width, height = tuple(map(float, line.split()[1:]))
-                            x_min, y_min, x_max, y_max = self.bbox_xywhn2xyxy(
-                                x_center, y_center, width, height, image_size
-                            )
-
-                            if not self.bbox_intersect(
-                                (bg_x_min, bg_y_min, bg_x_max, bg_y_max),
-                                (x_min, y_min, x_max, y_max)
-                            ):
-                                successfully_put_bg_crop = False
-
-                        if not successfully_put_bg_crop:
-                            continue
-
-                        self.list_bbox.append(
-                            (image_filename, (bg_x_min, bg_y_min, bg_x_max, bg_y_max), bg_label)
+                    successfully_put_bg_crop = True
+                    for line in lines:  # check inetrsection with true object boxes
+                        x_center, y_center, width, height = tuple(map(float, line.split()[1:]))
+                        x_min, y_min, x_max, y_max = self.bbox_xywhn2xyxy(
+                            x_center, y_center, width, height, image_size
                         )
-                        break
+
+                        if not self.bbox_intersect(
+                            (bg_x_min, bg_y_min, bg_x_max, bg_y_max),
+                            (x_min, y_min, x_max, y_max)
+                        ):
+                            successfully_put_bg_crop = False
+
+                    if not successfully_put_bg_crop:
+                        continue
+
+                    self.list_bbox.append(
+                        (image_filename, (bg_x_min, bg_y_min, bg_x_max, bg_y_max), bg_label)
+                    )
+                    break
 
     def __len__(self):
         return len(self.list_bbox)
@@ -450,6 +451,38 @@ class AnnotatedYOLODataset(Dataset):
     
     def check_boxes_sizes_annotation(self, x_min, y_min, x_max, y_max):
         return x_max - x_min >= self.min_box_size and y_max - y_min >= self.min_box_size
+    
+    def get_img_files(self, img_path):
+        """
+        Read yolo images dattaset directory.
+        
+        As implemented in https://github.com/ultralytics/ultralytics/blob/7a79680dcc1d9c8d8da1c3910fa1775110c41255/ultralytics/data/base.py#L99
+        """
+        HELP_URL = "See https://docs.ultralytics.com/datasets for dataset formatting guidance."
+        IMG_FORMATS = tuple(map(lambda ext: '.' + ext, self.ext))  # image suffixes
+        VID_FORMATS = {"asf", "avi", "gif", "m4v", "mkv", "mov", "mp4", "mpeg", "mpg", "ts", "wmv", "webm"}  # video suffixes
+        FORMATS_HELP_MSG = f"Supported formats are:\nimages: {IMG_FORMATS}\nvideos: {VID_FORMATS}"
+        try:
+            f = []  # image files
+            for p in img_path if isinstance(img_path, list) else [img_path]:
+                p = Path(p)  # os-agnostic
+                if p.is_dir():  # dir
+                    f += glob.glob(str(p / "**" / "*.*"), recursive=True)
+                    # F = list(p.rglob('*.*'))  # pathlib
+                elif p.is_file():  # file
+                    with open(p) as t:
+                        t = t.read().strip().splitlines()
+                        parent = str(p.parent) + os.sep
+                        f += [x.replace("./", parent) if x.startswith("./") else x for x in t]  # local to global path
+                        # F += [p.parent / x.lstrip(os.sep) for x in t]  # local to global path (pathlib)
+                else:
+                    raise FileNotFoundError(f"{self.prefix}{p} does not exist")
+            im_files = sorted(x.replace("/", os.sep) for x in f if x.split(".")[-1].lower() in IMG_FORMATS)
+            # self.img_files = sorted([x for x in f if x.suffix[1:].lower() in IMG_FORMATS])  # pathlib
+            assert im_files, f"{self.prefix}No images found in {img_path}. {FORMATS_HELP_MSG}"
+        except Exception as e:
+            raise FileNotFoundError(f"{self.prefix}Error loading data from {img_path}\n{HELP_URL}") from e
+        return im_files
 
 
 class AnnotatedMultitaskDataset(Dataset):
