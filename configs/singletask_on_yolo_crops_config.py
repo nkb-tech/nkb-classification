@@ -17,10 +17,10 @@ task = "single"
 
 model_path = f"/root/nkb-classification/exp"
 
+comet_api_cfg_path = "config/comet_api_cfg_path.yaml"  # should contain "api_key", "workspace" and "project_name" fields 
+
 experiment = {
-    "api_key_path": "configs/comet_api_key.txt",
-    "project_name": "nkb-classification",
-    "workspace": "grigorevaesenia",
+    comet_api_cfg_path: comet_api_cfg_path,
     "auto_metric_logging": False,
     "name": split(model_path)[-1],
 }
