@@ -15,8 +15,6 @@ enable_gradient_scaler = True
 
 task = "single"
 
-target_column = None
-
 model_path = f"/root/nkb-classification/exp"
 
 experiment = {
@@ -115,28 +113,34 @@ weighted_sampling : works only for single task
 
 train_data = {
     "type": "AnnotatedYOLODataset",
-    "annotations_file": "/root/Projects/nkb-classification/brain-tumor.yaml",
-    "image_base_dir": '/root/Projects/nkb-classification/nkb_classification/datasets',
-    "target_column": target_column,
+    "annotations_file": "/root/Projects/nkb-classification/brain-tumor.yaml",  # dataset yaml config
+    "image_base_dir": '/root/Projects/nkb-classification/nkb_classification/datasets',  # prefix for dataset config "path" field
     "fold": "train",
     "weighted_sampling": True,
     "shuffle": True,
     "batch_size": 32,
     "num_workers": 10,
-    "size": img_size,
+    "min_box_size": 5,  # minimum bounding boox side size to include the box in the dataset
+    "generate_backgrounds": True,  # whether to generate additional bounding
+                                   # boxes corresponding to additional background class
+    "background_generating_prob": None,  # probability of generation a random background box from an image
+                                         # if None, then equals 1 / nun_classes (ignored if generate_backgrounds == False)
+    "background_crop_sizes": (0.1, 0.3),  # background box size range (ignored if generate_backgrounds == False)
 }
 
 
 val_data = {
     "type": "AnnotatedYOLODataset",
     "annotations_file": "/root/Projects/nkb-classification/brain-tumor.yaml",
-    "target_column": target_column,
     "fold": "val",
     "weighted_sampling": False,
     "shuffle": True,
     "batch_size": 32,
     "num_workers": 10,
-    "size": img_size,
+    "min_box_size": 5,
+    "generate_backgrounds": True,
+    "background_generating_prob": None,
+    "background_crop_sizes": (0.1, 0.3),
 }
 
 
