@@ -2,30 +2,43 @@ import albumentations as A
 import cv2
 from albumentations.pytorch import ToTensorV2
 
-device = "cuda:1"
+device = "cuda:0"
+enable_mixed_presicion = True
+compile = False  # not working correctly yet, so set to false
 
-save_path = "/home/denis/nkbtech/inference"
+save_path = "data/runs/val_singletask_run_1"
 
-target_names = [
-    "dog_size",
-    "dog_fur",
-    "dog_color",
-    "dog_ear_type",
-    "dog_muzzle_len",
-    "dog_leg_len",
-]
+train_run_path = "data/runs/train_singletask_run_1"
 
-img_size = 224
+"""
+Here you describe inference data.
+
+folder_path: where the images to be classified are stored
+
+and some pytorch dataloader parameters
+"""
+
+task = "single"
+
+target_column = "label"
+classes = f"{train_run_path}/classes.json"
+
+inference_data = {
+    "folder_path": "data/unknown_images",
+    "batch_size": 64,
+    "num_workers": 8,
+}
+
+"""
+Here you describe the transformations applied to the processed images
+"""
+
+img_size = 128
 
 inference_pipeline = A.Compose(
     [
         A.LongestMaxSize(img_size, always_apply=True),
-        A.PadIfNeeded(
-            img_size,
-            img_size,
-            always_apply=True,
-            border_mode=cv2.BORDER_CONSTANT,
-        ),
+        A.PadIfNeeded(img_size, img_size, always_apply=True, border_mode=cv2.BORDER_CONSTANT, value=0),
         A.Normalize(
             mean=(0.485, 0.456, 0.406),
             std=(0.229, 0.224, 0.225),
@@ -34,13 +47,11 @@ inference_pipeline = A.Compose(
     ]
 )
 
-inference_data = {
-    "root": "/home/slava/hdd/hdd4/Datasets/petsearch/Dog_expo_Vladimir_02_07_2023_mp4_frames/multiclass_v4/images",
-    "train_annotations_file": "/home/slava/nkb-classification/jupyters_exps/annotation_high_res_video_split_v2_slava.csv",
-    "target_names": target_names,
-    "batch_size": 64,
-    "num_workers": 4,
-    "size": img_size,
-}
+"""
+Here you describe the model
+"""
 
-model = {"checkpoint": "/home/denis/src/project/models/classification/multitask/mobilenetv3_large_100_dummy/last.pth"}
+model = {
+    "scripted": True,
+    "checkpoint": f"{train_run_path}/weights/scripted_best.pt",
+}
