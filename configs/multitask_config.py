@@ -25,12 +25,17 @@ show_full_current_loss_in_terminal = False  # to show loss with respect to every
 log_gradients = False  # to include model gradients in logs
 show_all_classes_in_confusion_matrix = True  # show all classes in comet confusion matrix, if False then show at most 25
 
+task = "multi"  # to indicate working in multi-task mode
+
 """
 Here you describe train data.
 
-type: AnnotatedSingletaskDataset, AnnotatedMultitaskDataset, GroupsDataset, default - ImageFolder.
+type: AnnotatedSingletaskDataset, ImageFolder, AnnotatedYOLODataset, AnnotatedMultitaskDataset, GroupsDataset, default - ImageFolder.
+"""
 
-For AnnotatedSingletaskDataset and AnnotatedMultitaskDataset the argumatns basically are:
+"""
+AnnotatedMultitaskDataset
+
 annotations_file: Path to csv labels in for AnnotatedSingletaskDataset and AnnotatedMultitaskDataset.
 image_base_dir: Base directory of images. Paths in 'path' column must be relative to this dir. Set None if you have global dirs in your csv file.
 target_names : column names with class labels.
@@ -39,8 +44,6 @@ fold : train, val
 
 and some pytorch dataloader parameters
 """
-
-task = "multi"  # to indicate working in multi-task mode
 
 annotations_path = "data/annotations.csv"
 image_base_dir = "data/images"  # optional (may be not specified)
