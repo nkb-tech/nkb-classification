@@ -50,11 +50,10 @@ _Important fields_:
 * task : Determines task. Should be "single" for single task classfication (binary or multiclass), or 'multi' for multi task classification.
 * target_column *only for single task* : Column with class labels.
 * target_names *only for multi task* : Column names with class labels.
-* model_path : Path to save the checkpoints.
-* experiment : Settings regarding Comet ML logger. Set to None to disable it.
+* experiment : Settings regarding saving model weights, training results and Comet ML logger. Comet logger can be set to None to get disabled.
+* train_data / val_data: Train / val dataset settings. Look at comments in sample configs for details.
 * train_pipeline : Image preprocessing/augmentations during training phase.
 * val_pipeline : Image preprocessing/augmentations during validations phase.
-* train_data / val_data: Train / val dataset settings. Look at comments in sample configs for details.
 * model : Model settings. To choose a model, look section Available backbone models.
 
 ## Run inference
@@ -79,9 +78,29 @@ In case of the traditional classification task the dataset `csv` file is a table
 
 Objects with the `-1` fold value are ignored. Target columns are scpicfied in the `config` file by the `target_names` list. The path to the `csv` table is also provided through the `config` file.
 
+#### Arange images by folders
+To use this format, choose ImageFolder dataset type in train_data/val_data configs. In this case the structure of the dataset should be the following:
+```
+dataset_root/
+├── class_0/
+│   ├── image1.jpg
+│   ├── image2.jpg
+│   └── image3.jpg
+├── class_1/
+│   ├── image1.jpg
+│   ├── image2.jpg
+│   └── image3.jpg
+└── class_2/
+    ├── image1.jpg
+    ├── image2.jpg
+    └── image3.jpg
+
+```
+
 #### YAML data config
 
 In this case the format is the same as used in computer vision detection tasks as described in ultralytics docs: https://docs.ultralytics.com/datasets
+
 
 ## Available backbone models
 

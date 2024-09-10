@@ -36,6 +36,8 @@ class SingletaskClassifier(nn.Module):
             nn.Linear(self.emb_size, len(classes)),
         )
 
+        self.initialize_classifier(strategy=cfg_model["classifier_initialization"])
+
     def forward(self, x: torch.Tensor):
         emb = self.emb_model(x)
         return self.classifier(emb)
@@ -54,7 +56,7 @@ class SingletaskClassifier(nn.Module):
             else:
                 nn.init.zeros_(param)
 
-    def set_backbone_state(self, state: str = "freeze"):
+    def set_backbone_state(self, state: str):
         for param in self.emb_model.parameters():
             if state == "freeze":
                 param.requires_grad = False
@@ -128,7 +130,7 @@ class MultitaskClassifier(nn.Module):
                 else:
                     nn.init.zeros_(param)
 
-    def set_backbone_state(self, state: str = "freeze"):
+    def set_backbone_state(self, state: str):
         for param in self.emb_model.parameters():
             if state == "freeze":
                 param.requires_grad = False
@@ -158,13 +160,16 @@ class MultitaskClassifier(nn.Module):
 
 
 def get_model(cfg_model, classes, device="cpu", compile: bool = False):
-    if cfg_model["task"] == "single":
-        model = SingletaskClassifier(cfg_model, classes)
-    elif cfg_model["task"] == "multi":
-        model = MultitaskClassifier(cfg_model, classes)
-    chkpt = cfg_model.get("checkpoint", None)
-    if chkpt is not None:
-        model.load_state_dict(torch.load(chkpt, map_location="cpu"))
+    if cfg_model.get("scripted", False):
+        model = torch.jit.load(cfg_model["checkpoint"], map_location="cpu")
+    else:
+        if cfg_model["task"] == "single":
+            model = SingletaskClassifier(cfg_model, classes)
+        elif cfg_model["task"] == "multi":
+            model = MultitaskClassifier(cfg_model, classes)
+        chkpt = cfg_model.get("checkpoint", None)
+        if chkpt is not None:
+            model.load_state_dict(torch.load(chkpt, map_location="cpu"))
     model.to(device)
     if compile:
         model = torch.compile(model, dynamic=True)
