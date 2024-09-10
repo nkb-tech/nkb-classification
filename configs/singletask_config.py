@@ -24,12 +24,17 @@ experiment = {
 log_gradients = False  # to include model gradients in logs
 show_all_classes_in_confusion_matrix = True  # show all classes in comet confusion matrix, if False then show at most 25
 
+task = "single"  # to indicate working in single-task mode
+
 """
 Here you describe train data.
 
 type: AnnotatedSingletaskDataset, AnnotatedMultitaskDataset, GroupsDataset, default - ImageFolder.
+"""
 
-For AnnotatedSingletaskDataset and AnnotatedMultitaskDataset the argumatns basically are:
+"""
+AnnotatedSingletaskDataset
+
 annotations_file: Path to csv labels in for AnnotatedSingletaskDataset and AnnotatedMultitaskDataset.
 image_base_dir: Base directory of images. Paths in 'path' column must be relative to this dir. Set None if you have global dirs in your csv file.
 target_column : column name with class labels.
@@ -39,8 +44,6 @@ weighted_sampling : to sample training objects with respect to classes proportio
 
 and some pytorch dataloader parameters
 """
-
-task = "single"  # to indicate working in single-task mode
 
 annotations_path = "data/annotations.csv"
 image_base_dir = "data/images"  # optional (may be not specified)
@@ -77,7 +80,8 @@ val_data = {
 }
 
 """
-For the ImageFolder dataset the argument is:
+ImageFolder
+
 root: path to the folder where subfolders with images of each class are present
 """
 
@@ -99,6 +103,54 @@ root: path to the folder where subfolders with images of each class are present
 #     "batch_size": 64,
 #     "num_workers": 8,
 #     "drop_last": False,
+# }
+
+"""
+AnnotatedYOLODataset
+
+annotations_file: dataset yaml config
+image_base_dir: prefix for dataset config "path" field
+min_box_size: minimum bounding boox side size to include the box in the dataset
+generate_backgrounds: whether to generate additional bounding
+    boxes corresponding to additional background class
+background_generating_prob: probability of generation a random background box from an image
+    if None, then equals 1 / nun_classes (ignored if generate_backgrounds == False)
+background_crop_sizes: background box size range (ignored if generate_backgrounds == False)
+"""
+
+# annotations_path = "data/by_yolo_cfg/annotations.csv"
+# image_base_dir = "data/by_yolo_cfg"  # optional (may be not specified)
+
+# train_data = {
+#     "type": "AnnotatedYOLODataset",
+#     "annotations_file": annotations_path,  # dataset yaml config
+#     "image_base_dir": image_base_dir,  # prefix for dataset config "path" field
+#     "fold": "train",
+#     "weighted_sampling": True,
+#     "shuffle": True,
+#     "batch_size": 64,
+#     "num_workers": 8,
+#     "min_box_size": 5,  # minimum bounding boox side size to include the box in the dataset
+#     "generate_backgrounds": True,  # whether to generate additional bounding
+#                                    # boxes corresponding to additional background class
+#     "background_generating_prob": None,  # probability of generation a random background box from an image
+#                                          # if None, then equals 1 / nun_classes (ignored if generate_backgrounds == False)
+#     "background_crop_sizes": (0.1, 0.3),  # background box size range (ignored if generate_backgrounds == False)
+# }
+
+# val_data = {
+#     "type": "AnnotatedYOLODataset",
+#     "annotations_file": annotations_path,
+#     "image_base_dir": image_base_dir,
+#     "fold": "val",
+#     "weighted_sampling": False,
+#     "shuffle": True,
+#     "batch_size": 64,
+#     "num_workers": 8,
+#     "min_box_size": 5,
+#     "generate_backgrounds": True,
+#     "background_generating_prob": None,
+#     "background_crop_sizes": (0.1, 0.3),
 # }
 
 """
@@ -151,7 +203,13 @@ train_pipeline = A.Compose(
 val_pipeline = A.Compose(
     [
         A.LongestMaxSize(img_size, always_apply=True),
-        A.PadIfNeeded(img_size, img_size, always_apply=True, border_mode=cv2.BORDER_CONSTANT, value=0),
+        A.PadIfNeeded(
+            img_size,
+            img_size,
+            always_apply=True,
+            border_mode=cv2.BORDER_CONSTANT,
+            value=0,
+        ),
         A.Normalize(
             mean=(0.485, 0.456, 0.406),
             std=(0.229, 0.224, 0.225),

@@ -64,9 +64,10 @@ python3 -m inference -cfg `inference_cfg_path`
 ```
 
 ## Dataset format
+The dataset is provided as a `csv` table for the traditional classification task and as a `yaml`-config for classifiying bounding boxes crops from a detection dataset.
 
-#### CSV annotations
-To use this format, choose AnnotatedSingletaskDataset or AnnotatedMultitaskDataset dataset type in train_data/val_data configs. The dataset is provided as a `csv` table with paths to the images and annotations for each image which include train/val/test partition. Specifically, it should have the following structure
+#### CSV data config
+In case of the traditional classification task the dataset `csv` file is a table with paths to the images and annotations for each image which include train/val/test partition. Specifically, it should have the following structure
 
 || column_0 | column_1 | column_2 | ... | column_n | path | fold |
 |-|---|---|---|---|---|---|---|
@@ -95,6 +96,11 @@ dataset_root/
     └── image3.jpg
 
 ```
+
+#### YAML data config
+
+In this case the format is the same as used in computer vision detection tasks as described in ultralytics docs: https://docs.ultralytics.com/datasets
+
 
 ## Available backbone models
 
