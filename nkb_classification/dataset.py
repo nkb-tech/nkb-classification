@@ -285,6 +285,8 @@ class AnnotatedYOLODataset(Dataset):
             self.yaml_data = yaml.load(f, Loader=yaml.SafeLoader)
 
         self.idx_to_class = self.yaml_data["names"]
+        if type(self.idx_to_class) is list:
+            self.idx_to_class = {i: lb for i, lb in enumerate(self.idx_to_class)}
         assert set(self.idx_to_class.keys()) == set(range(len(self.idx_to_class))), \
         "Class indices should form range(0, num_classes) without skips"
 
@@ -314,7 +316,7 @@ class AnnotatedYOLODataset(Dataset):
             r = requests.get(url)
             z = zipfile.ZipFile(io.BytesIO(r.content))
             z.extractall(self.yaml_data["path"])
-            print(f"Finish loading dataset by {self.yaml_data["download"]}")
+            print(f"Finish loading dataset by {self.yaml_data['download']}")
 
         print("Scanning image directories")
         img_paths = self.get_img_files(image_dirs)
@@ -392,7 +394,7 @@ class AnnotatedYOLODataset(Dataset):
                         continue
 
                     self.list_bbox.append(
-                        (image_filename, (bg_x_min, bg_y_min, bg_x_max, bg_y_max), bg_label)
+                        (str(image_filename), (bg_x_min, bg_y_min, bg_x_max, bg_y_max), bg_label)
                     )
                     break
 
@@ -420,10 +422,10 @@ class AnnotatedYOLODataset(Dataset):
     @staticmethod
     def bbox_xywhn2xyxy(x_center, y_center, width, height, image_size):
         image_height, image_width = image_size
-        x_min = int((x_center - width / 2) * image_width)
-        y_min = int((y_center - height / 2) * image_height)
-        x_max = int((x_center + width / 2) * image_width)
-        y_max = int((y_center + height / 2) * image_height)
+        x_min = np.clip(int((x_center - width / 2) * image_width), 0, image_width)
+        y_min = np.clip(int((y_center - height / 2) * image_height), 0, image_height)
+        x_max = np.clip(int((x_center + width / 2) * image_width), 0, image_width)
+        y_max = np.clip(int((y_center + height / 2) * image_height), 0, image_height)
         return x_min, y_min, x_max, y_max
 
     @staticmethod
