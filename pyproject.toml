@@ -65,7 +65,6 @@ dependencies = [
     "torchsampler",
     "comet-ml",
     "timm",
-    "unicom @ git+https://github.com/deepglint/unicom.git",
     "wheel",
     "setuptools",
     "ninja",
@@ -78,7 +77,8 @@ dev = [
     "virtualenv",
     "ipdb",
     "monkeytype",
-    "pandas"
+    "pandas",
+    "unicom @ git+https://github.com/deepglint/unicom.git",
 ]
 export = [
     "onnx",
