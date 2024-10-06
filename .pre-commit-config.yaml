@@ -11,20 +11,20 @@ repos:
     hooks:
     -   id: autoflake
         args: [--remove-all-unused-imports, --in-place]
-  - repo: https://github.com/pre-commit/mirrors-yapf.git
-    rev: v0.32.0
-    hooks:
-      - id: yapf
-        args:
-        - "--based_on_style = 'pep8'"
-        - "spaces_before_comment = 2"
-        - "column_limit = 120"
-        - "coalesce_brackets = true"
-        - "spaces_around_power_operator = true"
-        - "space_between_ending_comma_and_closing_bracket = true"
-        - "split_before_closing_bracket = false"
-        - "split_before_first_argument = false"
-        additional_dependencies: [toml]
+#   - repo: https://github.com/pre-commit/mirrors-yapf.git
+#     rev: v0.32.0
+#     hooks:
+#       - id: yapf
+#         args:
+#         - "--based_on_style = 'pep8'"
+#         - "spaces_before_comment = 2"
+#         - "column_limit = 120"
+#         - "coalesce_brackets = true"
+#         - "spaces_around_power_operator = true"
+#         - "space_between_ending_comma_and_closing_bracket = true"
+#         - "split_before_closing_bracket = false"
+#         - "split_before_first_argument = false"
+#         additional_dependencies: [toml]
   - repo: https://github.com/pre-commit/pre-commit-hooks.git
     rev: v4.6.0
     hooks:
