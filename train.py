@@ -63,7 +63,11 @@ def train(
             val_results,
         )
         # TODO save chkpt each n epoch
-        scripted = torch.jit.script(model)
+        try:
+            scripted = torch.jit.script(model)
+        except:
+            dummy_input = next(iter(train_loader))[0].to(device)
+            scripted = torch.jit.trace(model, dummy_input)
         if epoch_val_acc is not None:
             if epoch_val_acc > best_val_acc:
                 best_val_acc = epoch_val_acc
