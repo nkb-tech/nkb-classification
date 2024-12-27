@@ -14,6 +14,21 @@ class BaseClassifier(nn.Module):
     def __init__(self, cfg_model: dict, classes: Union[list, dict]): ...
 
 
+class LastEmbEncoder(nn.Module):
+    """
+    Wrapper to get last embedding
+    from a hierarchical encoder
+    """
+    def __init__(self, encoder):
+        super().__init__()
+        self.encoder = encoder
+        self.pool = nn.AdaptiveAvgPool2d(1)
+    
+    def forward(self, x):
+        emb = self.encoder(x)[-1]
+        return torch.flatten(self.pool(emb), start_dim=1)
+
+
 class SingletaskClassifier(nn.Module):
     """
     Single task classification class.
@@ -77,6 +92,25 @@ class SingletaskClassifier(nn.Module):
         if name.lower().startswith("unicom"):
             emb_model, _ = unicom.load(name.split()[1])
             emb_size = emb_model.feature[-2].out_features
+        
+        elif name.lower().startswith("seg_encoder"):
+            pretrained_model_super = cfg_model["class"](
+                **cfg_model["init_params"]
+            )
+            pretrained_model_super.load_state_dict(
+                torch.load(cfg_model["weights"])
+            )
+            emb_model = getattr(
+                pretrained_model_super,
+                cfg_model["submodule"]
+            )
+            if hasattr(emb_model, "_depth"):  # hierarchical - we take only last layer emb
+                channel_sizes = [3, 64, 256, 512, 1024, 2048]
+                depth = emb_model._depth
+                emb_model = LastEmbEncoder(emb_model)
+                emb_size = channel_sizes[depth]
+            else:
+                emb_size = emb_model.num_features
 
         else:
             emb_model = timm.create_model(name, pretrained=cfg_model["pretrained"], num_classes=0)
