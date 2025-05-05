@@ -1,23 +1,24 @@
+import glob
+import io
+import os
 import pickle as pkl
+import zipfile
 from pathlib import Path, PosixPath
 from typing import Callable
 
 import albumentations as A
 import cv2
-import tqdm
 import numpy as np
 import pandas as pd
+import requests
 import torch
 import torchvision
 import yaml
 from PIL import Image
 from torch.utils.data import DataLoader, Dataset
 from torchvision.datasets import ImageFolder
-import requests, zipfile, io
-import os
-import glob
 
-from nkb_classification.utils import load_classes, get_classes_configs
+from nkb_classification.utils import get_classes_configs, load_classes
 
 
 class ImbalancedDatasetSampler(torch.utils.data.sampler.Sampler):
@@ -54,12 +55,10 @@ class ImbalancedDatasetSampler(torch.utils.data.sampler.Sampler):
 
         label_to_count = df["label"].value_counts()
 
-
-        #TODO
+        # TODO
         weights = 1.0 / label_to_count[df["label"]]
         # weights = 1.0 / len(label_to_count)
 
-        
         self.weights = torch.DoubleTensor(weights.to_list())
 
     def _get_labels(self, dataset):
@@ -192,9 +191,12 @@ class AnnotatedSingletaskDataset(Dataset):
         fold: which fold in the dataset to work with (train, val, test, -1)
         transform: which transform to apply to the image before returning it in the __getitem__ method
         image_base_dir: base directory of images. if = None, then absolute paths are expected in 'path' column.
-        classes: optional config of classes (list, dict, or path to json). if None, then will be infered from annotations
+        classes: optional config of classes (list, dict, or path to json). if None, then will be inferred from annotations
     """
-    def __init__(self, annotations_file, target_column, fold="test", transform=None, image_base_dir=None, classes=None, **kwargs):
+
+    def __init__(
+        self, annotations_file, target_column, fold="test", transform=None, image_base_dir=None, classes=None, **kwargs
+    ):
         self.table = pd.read_csv(annotations_file)
         self.table = self.table[self.table["fold"] == fold]
         self.target_column = target_column
@@ -238,18 +240,17 @@ class AnnotatedYOLODataset(Dataset):
 
     Args:
         annotations_file: path to the annotation file, which contains a pandas dataframe
-                          with image pahts and their target values
+                          with image paths and their target values
         fold: which fold in the dataset to work with (train, val, test, -1)
         transform: which transform to apply to the image before returning it in the __getitem__ method
         image_base_dir: base directory of images. if = None, then absolute paths are expected in 'path' column.
         min_box_size: bboxes with smaller linear size are ignored
         generate_backgrounds: option to generate random crops from image backgrounds
                           in oreder to train the classifier to distinguish false and true detections
-        background_generating_prob: probability of taking a bakground crop from an image (in case generate_backgrounds == True).
+        background_generating_prob: probability of taking a background crop from an image (in case generate_backgrounds == True).
                           If None, would be 1 / n_classes
         background_crop_sizes: min and max size of randomly chosen background crop (in case generate_backgrounds == True).
     """
-
 
     def __init__(
         self,
@@ -261,34 +262,35 @@ class AnnotatedYOLODataset(Dataset):
         generate_backgrounds=False,
         background_generating_prob=None,
         background_crop_sizes=(0.1, 0.3),
-        **kwargs
+        **kwargs,
     ):
         super().__init__()
 
         self.ext = [".jpg", ".jpeg", ".png"]
         self.min_box_size = min_box_size
 
-        assert fold in ('train', 'val', 'test'), \
-            f'Got fold equals {fold}'
-        
+        assert fold in ("train", "val", "test"), f"Got fold equals {fold}"
+
         self.fold = fold
         self.transform = transform
 
         self.generate_backgrounds = generate_backgrounds
         self.background_generating_prob = background_generating_prob
         self.background_crop_sizes = background_crop_sizes
-        self.attempts_to_put_bakground_crop = 10  # for random background_crop not to have intersection with true bboxes
+        self.attempts_to_put_bakground_crop = (
+            1000  # for random background_crop not to have intersection with true bboxes
+        )
 
-        assert os.path.exists(annotations_file), \
-            f'Annotations file {annotations_file} does not exist.'
-        with open(annotations_file, 'r') as f:
+        assert os.path.exists(annotations_file), f"Annotations file {annotations_file} does not exist."
+        with open(annotations_file, "r") as f:
             self.yaml_data = yaml.load(f, Loader=yaml.SafeLoader)
 
         self.idx_to_class = self.yaml_data["names"]
         if type(self.idx_to_class) is list:
             self.idx_to_class = {i: lb for i, lb in enumerate(self.idx_to_class)}
-        assert set(self.idx_to_class.keys()) == set(range(len(self.idx_to_class))), \
-        "Class indices should form range(0, num_classes) without skips"
+        assert set(self.idx_to_class.keys()) == set(
+            range(len(self.idx_to_class))
+        ), "Class indices should form range(0, num_classes) without skips"
 
         self.classes = list(None for _ in range(len(self.idx_to_class)))
         for idx, lb in self.idx_to_class.items():
@@ -304,7 +306,7 @@ class AnnotatedYOLODataset(Dataset):
 
         if self.background_generating_prob is None:
             self.background_generating_prob = 1 / len(self.classes)
-        
+
         if not isinstance(self.yaml_data[self.fold], list):
             self.yaml_data[self.fold] = [self.yaml_data[self.fold]]
 
@@ -320,7 +322,7 @@ class AnnotatedYOLODataset(Dataset):
 
         print("Scanning image directories")
         img_paths = self.get_img_files(image_dirs)
-        
+
         self.list_bbox = []
 
         print("Scanning image annotations")
@@ -328,8 +330,7 @@ class AnnotatedYOLODataset(Dataset):
 
             image_filename = Path(image_filename)
             labels_dir = image_filename.parent.parent / "labels"
-            assert labels_dir.is_dir(), \
-                f"Directory {labels_dir} does not exist"
+            assert labels_dir.is_dir(), f"Directory {labels_dir} does not exist"
 
             if image_filename.suffix.lower() not in self.ext:
                 continue
@@ -339,7 +340,7 @@ class AnnotatedYOLODataset(Dataset):
             if not txt_file.is_file():
                 continue
 
-            with open(txt_file, 'r') as fp:
+            with open(txt_file, "r") as fp:
                 lines = fp.readlines()
 
             with Image.open(image_filename) as img:
@@ -362,7 +363,7 @@ class AnnotatedYOLODataset(Dataset):
                     continue
 
                 for attempt in range(self.attempts_to_put_bakground_crop):
-                
+
                     bg_crop_size = np.random.uniform(*self.background_crop_sizes)
 
                     bg_x_min = np.random.randint(0, int(img_width * (1 - bg_crop_size)))
@@ -370,9 +371,7 @@ class AnnotatedYOLODataset(Dataset):
                     bg_x_max = bg_x_min + int(img_width * bg_crop_size)
                     bg_y_max = bg_y_min + int(img_height * bg_crop_size)
 
-                    if not self.check_boxes_sizes_annotation(
-                        bg_x_min, bg_y_min, bg_x_max, bg_y_max
-                    ):
+                    if not self.check_boxes_sizes_annotation(bg_x_min, bg_y_min, bg_x_max, bg_y_max):
                         continue
 
                     bg_label = self.class_to_idx[self.classes[-1]]
@@ -380,22 +379,17 @@ class AnnotatedYOLODataset(Dataset):
                     successfully_put_bg_crop = True
                     for line in lines:  # check inetrsection with true object boxes
                         x_center, y_center, width, height = tuple(map(float, line.split()[1:]))
-                        x_min, y_min, x_max, y_max = self.bbox_xywhn2xyxy(
-                            x_center, y_center, width, height, image_size
-                        )
+                        x_min, y_min, x_max, y_max = self.bbox_xywhn2xyxy(x_center, y_center, width, height, image_size)
 
                         if not self.bbox_intersect(
-                            (bg_x_min, bg_y_min, bg_x_max, bg_y_max),
-                            (x_min, y_min, x_max, y_max)
+                            (bg_x_min, bg_y_min, bg_x_max, bg_y_max), (x_min, y_min, x_max, y_max)
                         ):
                             successfully_put_bg_crop = False
 
                     if not successfully_put_bg_crop:
                         continue
 
-                    self.list_bbox.append(
-                        (str(image_filename), (bg_x_min, bg_y_min, bg_x_max, bg_y_max), bg_label)
-                    )
+                    self.list_bbox.append((str(image_filename), (bg_x_min, bg_y_min, bg_x_max, bg_y_max), bg_label))
                     break
 
     def __len__(self):
@@ -415,10 +409,8 @@ class AnnotatedYOLODataset(Dataset):
         return img, label
 
     def get_labels(self):
-        return np.array([
-            label for _, _, label in self.list_bbox
-        ])
-    
+        return np.array([label for _, _, label in self.list_bbox])
+
     @staticmethod
     def bbox_xywhn2xyxy(x_center, y_center, width, height, image_size):
         image_height, image_width = image_size
@@ -437,19 +429,32 @@ class AnnotatedYOLODataset(Dataset):
         if y1_max < y2_min or y2_max < y1_min:
             return False
         return True
-    
+
     def check_boxes_sizes_annotation(self, x_min, y_min, x_max, y_max):
         return x_max - x_min >= self.min_box_size and y_max - y_min >= self.min_box_size
-    
+
     def get_img_files(self, img_path):
         """
         Read yolo images dattaset directory.
-        
+
         As implemented in https://github.com/ultralytics/ultralytics/blob/7a79680dcc1d9c8d8da1c3910fa1775110c41255/ultralytics/data/base.py#L99
         """
         HELP_URL = "See https://docs.ultralytics.com/datasets for dataset formatting guidance."
-        IMG_FORMATS = tuple(map(lambda ext: ext.split('.')[-1], self.ext))  # image suffixes
-        VID_FORMATS = {"asf", "avi", "gif", "m4v", "mkv", "mov", "mp4", "mpeg", "mpg", "ts", "wmv", "webm"}  # video suffixes
+        IMG_FORMATS = tuple(map(lambda ext: ext.split(".")[-1], self.ext))  # image suffixes
+        VID_FORMATS = {
+            "asf",
+            "avi",
+            "gif",
+            "m4v",
+            "mkv",
+            "mov",
+            "mp4",
+            "mpeg",
+            "mpg",
+            "ts",
+            "wmv",
+            "webm",
+        }  # video suffixes
         FORMATS_HELP_MSG = f"Supported formats are:\nimages: {IMG_FORMATS}\nvideos: {VID_FORMATS}"
         try:
             f = []  # image files
@@ -484,10 +489,12 @@ class AnnotatedMultitaskDataset(Dataset):
         target_names: list of target_names to consider
         fold: which fold in the dataset to work with (train, val, test, -1)
         transform: which transform to apply to the image before returning it in the __getitem__ method
-        classes: optional config of classes (list, dict, or path to json). if None, then will be infered from annotations
+        classes: optional config of classes (list, dict, or path to json). if None, then will be inferred from annotations
     """
 
-    def __init__(self, annotations_file, target_names, fold="test", transform=None, image_base_dir=None, classes=None, **kwargs):
+    def __init__(
+        self, annotations_file, target_names, fold="test", transform=None, image_base_dir=None, classes=None, **kwargs
+    ):
         self.table = pd.read_csv(annotations_file)
         self.table = self.table[self.table["fold"] == fold]
         self.target_names = [*sorted(target_names)]
