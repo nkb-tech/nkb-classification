@@ -219,8 +219,11 @@ class AnnotatedSingletaskDataset(Dataset):
 
     def __getitem__(self, idx):
         img_path = self.table.iloc[idx, self.table.columns.get_loc("path")]
-        img = cv2.imread(img_path)
-        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        if img_path.endswith(".png"):
+            img = cv2.imread(img_path, cv2.IMREAD_UNCHANGED)
+        else:
+            img = cv2.imread(img_path)
+            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         labels = np.array(
             self.class_to_idx[self.table.iloc[idx, self.table.columns.get_loc(self.target_column)]],
             dtype=np.int64,
