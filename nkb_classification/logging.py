@@ -341,9 +341,9 @@ class TrainLogger(BaseLogger):
         log_metrics(self.local_experiment, self.target_names, self.classes, epoch, val_results["metrics"], "Val")
 
         if self.comet_experiment is not None:  # log metrics to comet
-            log_images(self.comet_experiment, "train", epoch, train_results["images"])
+            # log_images(self.comet_experiment, "train", epoch, train_results["images"])
 
-            log_images(self.comet_experiment, "validation", epoch, val_results["images"])
+            # log_images(self.comet_experiment, "validation", epoch, val_results["images"])
 
             log_metrics(
                 self.comet_experiment,

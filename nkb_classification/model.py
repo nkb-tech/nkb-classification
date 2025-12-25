@@ -74,12 +74,26 @@ class SingletaskClassifier(nn.Module):
     @staticmethod
     def get_emb_model(cfg_model: dict):
         name = cfg_model["model"]
+        # Number of input channels. Defaults to 3 for standard RGB models.
+        in_chans = cfg_model.get("in_chans", 3)
+
         if name.lower().startswith("unicom"):
+            if in_chans != 3:
+                raise ValueError(
+                    f"Unicom models currently support only 3 input channels, got in_chans={in_chans}."
+                )
             emb_model, _ = unicom.load(name.split()[1])
             emb_size = emb_model.feature[-2].out_features
 
         else:
-            emb_model = timm.create_model(name, pretrained=cfg_model["pretrained"], num_classes=0)
+            # For hyperspectral input, `in_chans` can be > 3. Most timm models
+            # support the `in_chans` argument and will adapt the first conv layer.
+            emb_model = timm.create_model(
+                name,
+                pretrained=cfg_model["pretrained"],
+                num_classes=0,
+                in_chans=in_chans,
+            )
             emb_size = emb_model.num_features
 
         return emb_model, emb_size
@@ -148,12 +162,23 @@ class MultitaskClassifier(nn.Module):
     @staticmethod
     def get_emb_model(cfg_model: dict):
         name = cfg_model["model"]
+        in_chans = cfg_model.get("in_chans", 3)
+
         if name.lower().startswith("unicom"):
+            if in_chans != 3:
+                raise ValueError(
+                    f"Unicom models currently support only 3 input channels, got in_chans={in_chans}."
+                )
             emb_model, _ = unicom.load(name.split()[1])
             emb_size = emb_model.feature[-2].out_features
 
         else:
-            emb_model = timm.create_model(name, pretrained=cfg_model["pretrained"], num_classes=0)
+            emb_model = timm.create_model(
+                name,
+                pretrained=cfg_model["pretrained"],
+                num_classes=0,
+                in_chans=in_chans,
+            )
             emb_size = emb_model.num_features
 
         return emb_model, emb_size
@@ -169,7 +194,36 @@ def get_model(cfg_model, classes, device="cpu", compile: bool = False):
             model = MultitaskClassifier(cfg_model, classes)
         chkpt = cfg_model.get("checkpoint", None)
         if chkpt is not None:
-            model.load_state_dict(torch.load(chkpt, map_location="cpu"))
+            checkpoint = torch.load(chkpt, map_location="cpu")
+            
+            # Поддержка fine-tuning: можно загружать только backbone или с strict=False
+            load_backbone_only = cfg_model.get("load_backbone_only", False)
+            strict_loading = cfg_model.get("strict_loading", True)
+            
+            if load_backbone_only:
+                # Загружаем только веса backbone (emb_model), игнорируя classifier
+                model_dict = model.state_dict()
+                checkpoint_dict = {k: v for k, v in checkpoint.items() if k.startswith("emb_model.")}
+                model_dict.update(checkpoint_dict)
+                model.load_state_dict(model_dict, strict=False)
+                print(f"Загружены только веса backbone из {chkpt}")
+            else:
+                # Обычная загрузка с возможностью strict=False
+                try:
+                    model.load_state_dict(checkpoint, strict=strict_loading)
+                    if strict_loading:
+                        print(f"Чекпоинт загружен из {chkpt} (strict=True)")
+                    else:
+                        print(f"Чекпоинт загружен из {chkpt} (strict=False)")
+                except RuntimeError as e:
+                    if strict_loading:
+                        print(f"Ошибка при загрузке чекпоинта (strict=True): {e}")
+                        print("Попробуйте установить strict_loading=False или load_backbone_only=True")
+                        raise
+                    else:
+                        # Если strict=False, все равно может быть ошибка, но попробуем загрузить частично
+                        model.load_state_dict(checkpoint, strict=False)
+                        print(f"Чекпоинт загружен частично из {chkpt} (strict=False)")
     model.to(device)
     if compile:
         model = torch.compile(model, dynamic=True)

@@ -130,6 +130,140 @@ class InferDataset(Dataset):
         return img, path
 
 
+class InferHypercubeDataset(Dataset):
+    """
+    Dataset for inference on hyperspectral cubes stored as .npy files.
+    
+    Args:
+        folder_path: path to folder containing .npy files
+        transform: transform to apply to the cube
+        selected_channels: optional list of channel indices to use. if None, all channels are used.
+    """
+    def __init__(
+        self,
+        folder_path,
+        transform=None,
+        selected_channels=None,
+    ):
+        super(InferHypercubeDataset, self).__init__()
+        self.ext = [".npy"]
+        self.folder = Path(folder_path)
+        
+        self.transform = transform
+        
+        # Сохраняем выбранные каналы
+        if selected_channels is not None:
+            if isinstance(selected_channels, (list, tuple, np.ndarray)):
+                self.selected_channels = np.array(selected_channels, dtype=np.int64)
+            else:
+                raise ValueError("selected_channels must be a list, tuple, or numpy array of channel indices")
+            print(f"Используются только выбранные каналы: {self.selected_channels.tolist()}")
+        else:
+            self.selected_channels = None
+            print("Используются все каналы")
+        
+        self.cubes = [str(p) for p in self.folder.iterdir() if p.suffix.lower() in self.ext]
+        self.cubes.sort()  # Сортируем для воспроизводимости
+
+    def __len__(self):
+        return len(self.cubes)
+
+    def __getitem__(self, idx):
+        cube_path = self.cubes[idx]
+        # Expecting .npy file containing hyperspectral cube of shape (H, W, C)
+        cube = np.load(cube_path)
+        
+        # Фильтруем каналы, если указаны выбранные каналы
+        if self.selected_channels is not None:
+            # Проверяем, что индексы каналов в допустимом диапазоне
+            max_channel = cube.shape[2] - 1
+            valid_channels = self.selected_channels[self.selected_channels <= max_channel]
+            if len(valid_channels) < len(self.selected_channels):
+                print(f"Предупреждение: некоторые каналы выходят за пределы. Доступно каналов: {cube.shape[2]}, запрошено: {self.selected_channels.tolist()}")
+            if len(valid_channels) > 0:
+                cube = cube[:, :, valid_channels]
+            else:
+                raise ValueError(f"Ни один из запрошенных каналов {self.selected_channels.tolist()} не доступен. Максимальный индекс канала: {max_channel}")
+        
+        path = str(cube_path)
+        if self.transform is not None:
+            return self.transform(cube), path
+        return cube, path
+
+
+class InferHypercubeFromCSVDataset(Dataset):
+    """
+    Dataset for inference on hyperspectral cubes from CSV file.
+    Similar to AnnotatedSingletaskHypercubeDataset but without labels.
+    
+    Args:
+        annotations_file: path to CSV file with 'path' column containing paths to .npy files
+        transform: transform to apply to the cube
+        image_base_dir: base directory of .npy files. if = None, then absolute paths are expected in 'path' column.
+        selected_channels: optional list of channel indices to use. if None, all channels are used.
+    """
+    def __init__(
+        self,
+        annotations_file,
+        transform=None,
+        image_base_dir=None,
+        selected_channels=None,
+    ):
+        super(InferHypercubeFromCSVDataset, self).__init__()
+        self.table = pd.read_csv(annotations_file)
+        self.transform = transform
+        
+        # Сохраняем выбранные каналы
+        if selected_channels is not None:
+            if isinstance(selected_channels, (list, tuple, np.ndarray)):
+                self.selected_channels = np.array(selected_channels, dtype=np.int64)
+            else:
+                raise ValueError("selected_channels must be a list, tuple, or numpy array of channel indices")
+            print(f"Используются только выбранные каналы: {self.selected_channels.tolist()}")
+        else:
+            self.selected_channels = None
+            print("Используются все каналы")
+        
+        if image_base_dir is not None:
+            image_base_dir = Path(image_base_dir)
+            self.table.path = self.table.path.apply(lambda r: str(image_base_dir / Path(r)))
+        
+        # Сохраняем исходные индексы для правильной записи результатов
+        self.table['_original_idx'] = self.table.index
+
+    def __len__(self):
+        return len(self.table)
+
+    def __getitem__(self, idx):
+        cube_path = self.table.iloc[idx, self.table.columns.get_loc("path")]
+        original_idx = self.table.iloc[idx, self.table.columns.get_loc("_original_idx")]
+        
+        # Expecting .npy file containing hyperspectral cube of shape (H, W, C)
+        cube = np.load(cube_path)
+        
+        # Фильтруем каналы, если указаны выбранные каналы
+        if self.selected_channels is not None:
+            # Проверяем, что индексы каналов в допустимом диапазоне
+            max_channel = cube.shape[2] - 1
+            valid_channels = self.selected_channels[self.selected_channels <= max_channel]
+            if len(valid_channels) < len(self.selected_channels):
+                print(f"Предупреждение: некоторые каналы выходят за пределы. Доступно каналов: {cube.shape[2]}, запрошено: {self.selected_channels.tolist()}")
+            if len(valid_channels) > 0:
+                cube = cube[:, :, valid_channels]
+            else:
+                raise ValueError(f"Ни один из запрошенных каналов {self.selected_channels.tolist()} не доступен. Максимальный индекс канала: {max_channel}")
+        
+        if self.transform is not None:
+            cube = self.transform(cube)
+        
+        # Возвращаем куб, путь и исходный индекс
+        return cube, str(cube_path), original_idx
+    
+    def get_table(self):
+        """Возвращает исходную таблицу для записи результатов"""
+        return self.table.copy()
+
+
 class GroupsDataset(Dataset):
     def __init__(self, root, ann_file, dict_path, transform=None, **kwargs):
         super().__init__()
@@ -232,6 +366,103 @@ class AnnotatedSingletaskDataset(Dataset):
 
     def get_labels(self):
         return self.table[self.target_column].values
+
+
+class AnnotatedSingletaskHypercubeDataset(Dataset):
+    """
+    AnnotatedSingletaskHypercubeDataset provides a way to do single-target classification
+    on precomputed hyperspectral cubes stored as .npy tensors.
+
+    Args:
+        annotations_file: path to the annotation file, which contains a pandas dataframe
+                          with paths to .npy hypercubes and their target values
+        target_column: name of the column containing class annotations
+        fold: which fold in the dataset to work with (train, val, test, -1)
+        transform: which transform to apply to the cube (as HxWxC array) before returning it
+        image_base_dir: base directory of .npy files. if = None, then absolute paths are expected in 'path' column.
+        classes: optional config of classes (list, dict, or path to json). if None, then will be inferred from annotations
+        selected_channels: optional list of channel indices to use. if None, all channels are used.
+                           Example: [0, 5, 10, 15] will use only channels 0, 5, 10, and 15.
+    """
+
+    def __init__(
+        self, annotations_file, target_column, fold="test", transform=None, image_base_dir=None, classes=None, selected_channels=None, **kwargs
+    ):
+        self.table = pd.read_csv(annotations_file)
+        self.table = self.table[self.table["fold"] == fold]
+        self.target_column = target_column
+
+        if classes is not None:
+            self.classes = load_classes(classes)
+        else:
+            self.classes = np.sort(np.unique(self.table[target_column].values)).tolist()
+
+        self.class_to_idx, self.idx_to_class = get_classes_configs(self.classes)
+
+        self.transform = transform
+        
+        # Сохраняем выбранные каналы
+        if selected_channels is not None:
+            if isinstance(selected_channels, (list, tuple, np.ndarray)):
+                self.selected_channels = np.array(selected_channels, dtype=np.int64)
+            else:
+                raise ValueError("selected_channels must be a list, tuple, or numpy array of channel indices")
+            print(f"Используются только выбранные каналы: {self.selected_channels.tolist()}")
+        else:
+            self.selected_channels = None
+            print("Используются все каналы")
+
+        if image_base_dir is not None:
+            image_base_dir = Path(image_base_dir)
+            self.table.path = self.table.path.apply(lambda r: str(image_base_dir / Path(r)))
+
+    def __len__(self):
+        return len(self.table)
+
+    def __getitem__(self, idx):
+        cube_path = self.table.iloc[idx, self.table.columns.get_loc("path")]
+        # Expecting .npy file containing hyperspectral cube of shape (H, W, C)
+        cube = np.load(cube_path)
+        
+        # Фильтруем каналы, если указаны выбранные каналы
+        if self.selected_channels is not None:
+            # Проверяем, что индексы каналов в допустимом диапазоне
+            max_channel = cube.shape[2] - 1
+            valid_channels = self.selected_channels[self.selected_channels <= max_channel]
+            if len(valid_channels) < len(self.selected_channels):
+                print(f"Предупреждение: некоторые каналы выходят за пределы. Доступно каналов: {cube.shape[2]}, запрошено: {self.selected_channels.tolist()}")
+            if len(valid_channels) > 0:
+                cube = cube[:, :, valid_channels]
+            else:
+                raise ValueError(f"Ни один из запрошенных каналов {self.selected_channels.tolist()} не доступен. Максимальный индекс канала: {max_channel}")
+        
+        labels = np.array(
+            self.class_to_idx[
+                self.table.iloc[idx, self.table.columns.get_loc(self.target_column)]
+            ],
+            dtype=np.int64,
+        )
+
+        if self.transform is not None:
+            return self.transform(cube), labels
+        return cube, labels
+
+    def get_labels(self):
+        return self.table[self.target_column].values
+    
+    def get_num_channels(self):
+        """
+        Возвращает количество каналов, которые будут использоваться.
+        Полезно для установки in_chans в модели.
+        """
+        if self.selected_channels is not None:
+            return len(self.selected_channels)
+        # Если каналы не указаны, нужно загрузить один куб для определения количества каналов
+        if len(self.table) > 0:
+            cube_path = self.table.iloc[0, self.table.columns.get_loc("path")]
+            cube = np.load(cube_path)
+            return cube.shape[2]
+        return None
 
 
 class AnnotatedYOLODataset(Dataset):
@@ -565,6 +796,14 @@ def get_dataset(data, pipeline):
                 transform=transform,
                 **data,
             )
+        case "AnnotatedSingletaskHypercubeDataset":
+            dataset = AnnotatedSingletaskHypercubeDataset(
+                # data["ann_file"],
+                # data["target_column"],
+                # data["fold"],
+                transform=transform,
+                **data,
+            )
         case "AnnotatedYOLODataset":
             dataset = AnnotatedYOLODataset(
                 # data["ann_file"],
@@ -631,14 +870,39 @@ def get_dataset(data, pipeline):
 
 def get_inference_dataset(data, pipeline):
     transform = Transforms(pipeline)
-    dataset = InferDataset(
-        folder_path=data["folder_path"],
-        transform=transform,
-    )
+    
+    # Определяем тип датасета: обычные изображения или гиперкубы
+    dataset_type = data.get("type", "image")  # по умолчанию "image"
+    
+    if dataset_type == "hypercube_csv":
+        # Для гиперкубов из CSV файла
+        selected_channels = data.get("selected_channels", None)
+        image_base_dir = data.get("image_base_dir", None)
+        dataset = InferHypercubeFromCSVDataset(
+            annotations_file=data["annotations_file"],
+            transform=transform,
+            image_base_dir=image_base_dir,
+            selected_channels=selected_channels,
+        )
+    elif dataset_type == "hypercube":
+        # Для гиперкубов из папки
+        selected_channels = data.get("selected_channels", None)
+        dataset = InferHypercubeDataset(
+            folder_path=data["folder_path"],
+            transform=transform,
+            selected_channels=selected_channels,
+        )
+    else:
+        # Для обычных изображений используем InferDataset
+        dataset = InferDataset(
+            folder_path=data["folder_path"],
+            transform=transform,
+        )
+    
     loader = DataLoader(
         dataset,
         batch_size=data["batch_size"],
         num_workers=data["num_workers"],
         pin_memory=True,
     )
-    return loader
+    return loader, dataset if dataset_type == "hypercube_csv" else None

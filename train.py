@@ -3,7 +3,7 @@ import os
 from pathlib import Path
 
 import torch
-from torch.cuda.amp import GradScaler
+from torch.amp import GradScaler
 from tqdm import tqdm
 
 from nkb_classification.engine import train_epoch, val_epoch
@@ -33,8 +33,8 @@ def train(
     best_val_acc = 0
     classes = train_loader.dataset.classes
     train_logger = TrainLogger(cfg, comet_experiment, local_experiment, classes)
-    train_logger.log_images_at_start(train_loader)
-    scaler = GradScaler(enabled=cfg.enable_gradient_scaler)
+    # train_logger.log_images_at_start(train_loader)
+    scaler = GradScaler('cuda', enabled=cfg.enable_gradient_scaler)
 
     for epoch in tqdm(range(n_epochs), desc="Training epochs"):
         if epoch in cfg.backbone_state_policy.keys():
